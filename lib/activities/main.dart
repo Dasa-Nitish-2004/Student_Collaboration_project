@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:scolab/DatabaseService/databaseServices.dart';
-import 'package:scolab/activities/homePage.dart';
+import 'package:scolab/activities/skillsPage.dart';
 import 'package:mongo_dart/mongo_dart.dart' as mongo;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -27,6 +27,10 @@ class MyApp extends StatelessWidget {
       loggedin = "";
     } else {
       loggedin = prefs.getString("email")!;
+      if (!await MongoDb()
+          .checkUserExists(await MongoDb().getConnection(), loggedin)) {
+        loggedin = "";
+      }
     }
     print("check completed");
   }
@@ -41,8 +45,8 @@ class MyApp extends StatelessWidget {
       ),
       home: loggedin == ""
           ? signInPage()
-          : MyHomePage(
-              title: 'Home',
+          : SkillPage(
+              title: 'Skill',
             ),
     );
   }
@@ -75,23 +79,29 @@ class _signInPageState extends State<signInPage> {
   Widget login_space = Container();
   var email = "";
 
+  registerUser() async {
+    _googleSignIn = GoogleSignIn();
+    try {
+      var result = await _googleSignIn.signIn();
+      email = result!.email;
+      MongoDb().addUser(db, email);
+      _googleSignIn.disconnect();
+    } catch (error) {
+      print(error);
+    } finally {
+      setState(() {});
+    }
+  }
+
   signIn() async {
     _googleSignIn = GoogleSignIn();
     try {
       var result = await _googleSignIn.signIn();
       email = result!.email;
 
-      if (!data.contains(email)) {
-        _googleSignIn.disconnect();
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("failed to Sign In please Register the account"),
-            duration: Duration(seconds: 2),
-          ),
-        );
-        email = "";
-      } else {
+      if (data.contains(email) ||
+          !await MongoDb()
+              .checkUserExists(await MongoDb().getConnection(), email)) {
         var prefs = await SharedPreferences.getInstance();
         await prefs.setString('email', email);
 
@@ -101,13 +111,24 @@ class _signInPageState extends State<signInPage> {
             duration: Duration(seconds: 2),
           ),
         );
+        db.close();
         Navigator.of(context).pushReplacement(MaterialPageRoute(
           builder: (context) {
-            return MyHomePage(
-              title: '',
+            return SkillPage(
+              title: 'Skill',
             );
           },
         ));
+      } else {
+        _googleSignIn.disconnect();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("failed to Sign In please Register the account"),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        email = "";
       }
     } catch (error) {
       print(error);
@@ -187,7 +208,8 @@ class _signInPageState extends State<signInPage> {
             height: 200,
             width: double.infinity,
           ),
-          ElevatedButton(onPressed: signIn, child: Text("Register with Mail")),
+          ElevatedButton(
+              onPressed: registerUser, child: Text("Register with Mail")),
           SizedBox(
             height: 20,
           ),
