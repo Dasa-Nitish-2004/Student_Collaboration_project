@@ -46,7 +46,7 @@ class MyApp extends StatelessWidget {
       home: loggedin == ""
           ? signInPage()
           : SkillPage(
-              title: 'Skill',
+              title: 'Info & Skill',
             ),
     );
   }
@@ -86,6 +86,12 @@ class _signInPageState extends State<signInPage> {
       email = result!.email;
       MongoDb().addUser(db, email);
       _googleSignIn.disconnect();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("successfull registered in $email"),
+          duration: Duration(seconds: 2),
+        ),
+      );
     } catch (error) {
       print(error);
     } finally {
@@ -115,7 +121,7 @@ class _signInPageState extends State<signInPage> {
         Navigator.of(context).pushReplacement(MaterialPageRoute(
           builder: (context) {
             return SkillPage(
-              title: 'Skill',
+              title: 'Info & Skill',
             );
           },
         ));
