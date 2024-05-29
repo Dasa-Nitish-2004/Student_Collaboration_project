@@ -1,8 +1,7 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:provider/provider.dart';
 import 'package:scolab/DatabaseService/databaseServices.dart';
 import 'package:scolab/activities/skillsPage.dart';
 import 'package:mongo_dart/mongo_dart.dart' as mongo;
@@ -69,6 +68,13 @@ class _signInPageState extends State<signInPage> {
     fetchData();
   }
 
+  @override
+  void dispose() {
+    // TODO: implement dispose
+    db.close();
+    super.dispose();
+  }
+
   void fetchData() async {
     data = await MongoDb().getIds(db);
     // print(data);
@@ -117,7 +123,6 @@ class _signInPageState extends State<signInPage> {
             duration: Duration(seconds: 2),
           ),
         );
-        db.close();
         Navigator.of(context).pushReplacement(MaterialPageRoute(
           builder: (context) {
             return SkillPage(
@@ -137,7 +142,12 @@ class _signInPageState extends State<signInPage> {
         email = "";
       }
     } catch (error) {
-      print(error);
+      _googleSignIn.disconnect();
+      print("error : ***${error}***");
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text("Check internet connectivity"),
+        duration: Duration(seconds: 3),
+      ));
     } finally {
       setState(() {});
     }

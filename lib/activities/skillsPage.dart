@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:scolab/DatabaseService/databaseServices.dart';
+import 'package:scolab/data.dart' as data;
 
 class SkillPage extends StatefulWidget {
   const SkillPage({Key? key, required this.title}) : super(key: key);
@@ -15,6 +17,8 @@ class _SkillPageState extends State<SkillPage> {
   final TextEditingController linkedInController = TextEditingController();
   final List<Map<String, TextEditingController>> skillControllers = [];
   final List<Map<String, TextEditingController>> projectControllers = [];
+
+  final List<String> skillSuggestions = data.skills;
 
   @override
   void initState() {
@@ -73,40 +77,87 @@ class _SkillPageState extends State<SkillPage> {
     });
   }
 
-  void _handleSubmit() {
+  void _handleSubmit() async {
     final userDescription = userDescriptionController.text;
     final gitHub = gitHubController.text;
     final linkedIn = linkedInController.text;
-    final skills = skillControllers
-        .map((skill) => {
-              'skill': skill['skill']!.text,
-              'description': skill['description']!.text,
-            })
-        .toList();
-    final projects = projectControllers
-        .map((project) => {
-              'project': project['project']!.text,
-              'description': project['description']!.text,
-            })
-        .toList();
+    final skills = skillControllers.map((skill) {
+      // data.skills.add(skill['skill']!.text);
+      // DataFile().addSkill();
+      // DataFile().addSkill(skill['skill']!.text);
+
+      if (skill['skill']!.text.trim().isNotEmpty) {
+        return {
+          'skill': skill['skill']!.text,
+          'description': skill['description']!.text,
+        };
+      } else {
+        return null;
+      }
+    }).toList();
+    final projects = projectControllers.map((project) {
+      if (project['project']!.text.trim().isNotEmpty) {
+        return {
+          'project': project['project']!.text,
+          'description': project['description']!.text,
+        };
+      } else {
+        return null;
+      }
+    }).toList();
 
     print('User Description: $userDescription');
     print('GitHub: $gitHub');
     print('LinkedIn: $linkedIn');
     print('Skills: $skills');
     print('Projects: $projects');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Invalid input'),
+        content: const Text(
+            'Please make sure a valid title, amount, date and category was entered.'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+            },
+            child: const Text('Okay'),
+          ),
+        ],
+      ),
+    );
+
+    try {
+      var db = await MongoDb().getConnection();
+      var data = await MongoDb().getIds(db);
+      print(data);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text("Check internet connectivity"),
+        duration: Duration(seconds: 3),
+      ));
+    }
+
+    return;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
         leading: Icon(Icons.article),
         actions: [
           IconButton(
-            icon: Icon(Icons.arrow_right_alt_rounded),
-            onPressed: () {},
+            icon: Icon(
+              Icons.arrow_right_alt_rounded,
+            ),
+            onPressed: () {
+              print(data.skills);
+            },
           )
         ],
       ),
@@ -125,6 +176,7 @@ class _SkillPageState extends State<SkillPage> {
                   borderRadius: BorderRadius.circular(22),
                 ),
                 hintText: "User Description",
+                helperText: "basic info that you want to show",
                 prefixIcon: Icon(
                   Icons.person,
                   color: Colors.deepPurple,
@@ -180,26 +232,55 @@ class _SkillPageState extends State<SkillPage> {
               Map<String, TextEditingController> skill = entry.value;
               return Column(
                 children: [
-                  TextField(
-                    controller: skill['skill'],
-                    maxLines: 1,
-                    maxLength: 50,
-                    minLines: 1,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(22),
-                      ),
-                      hintText: "Skill",
-                      prefixIcon: Icon(
-                        Icons.person,
-                        color: Colors.deepPurple,
-                        size: 24,
-                      ),
-                      suffixIcon: IconButton(
-                        icon: Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => _removeSkill(index),
-                      ),
-                    ),
+                  Autocomplete<String>(
+                    optionsBuilder: (TextEditingValue textEditingValue) {
+                      if (textEditingValue.text.isEmpty) {
+                        return const Iterable<String>.empty();
+                      }
+                      return skillSuggestions.where((String option) {
+                        return option
+                            .toLowerCase()
+                            .contains(textEditingValue.text.toLowerCase());
+                      });
+                    },
+                    fieldViewBuilder: (BuildContext context,
+                        TextEditingController textEditingController,
+                        FocusNode focusNode,
+                        VoidCallback onFieldSubmitted) {
+                      return TextField(
+                        controller: textEditingController,
+                        focusNode: focusNode,
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(22),
+                          ),
+                          hintText: "Skill",
+                          helperText: "click plus for new skill",
+                          prefixIcon: Icon(
+                            Icons.person,
+                            color: Colors.deepPurple,
+                            size: 24,
+                          ),
+                          suffixIcon: IconButton(
+                            icon: Icon(Icons.delete, color: Colors.red),
+                            onPressed: () => _removeSkill(index),
+                          ),
+                          suffix: IconButton(
+                            icon: Icon(
+                              Icons.add,
+                              color: Colors.black,
+                            ),
+                            onPressed: () {
+                              data.skills.add(textEditingController.text);
+                              skill['skill']!.text = textEditingController.text;
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                    onSelected: (String selection) {
+                      skill['skill']!.text = selection;
+                    },
                   ),
                   SizedBox(height: 10),
                   TextField(
@@ -212,10 +293,6 @@ class _SkillPageState extends State<SkillPage> {
                         borderRadius: BorderRadius.circular(22),
                       ),
                       hintText: "Skill Description",
-                      // suffixIcon: IconButton(
-                      //   icon: Icon(Icons.delete, color: Colors.red),
-                      //   onPressed: () => _removeSkill(index),
-                      // ),
                     ),
                   ),
                   SizedBox(height: 20),
@@ -273,10 +350,6 @@ class _SkillPageState extends State<SkillPage> {
                         borderRadius: BorderRadius.circular(22),
                       ),
                       hintText: "Project Description",
-                      // suffixIcon: IconButton(
-                      //   icon: Icon(Icons.delete, color: Colors.red),
-                      //   onPressed: () => _removeProject(index),
-                      // ),
                     ),
                   ),
                   SizedBox(height: 20),
