@@ -112,16 +112,33 @@ class _SkillPageState extends State<SkillPage> {
     print('Skills: $skills');
     print('Projects: $projects');
 
+    bool isentryValid = true;
+
+    if (userDescription.isEmpty || gitHub.isEmpty || linkedIn.isEmpty) {
+      isentryValid = false;
+    }
+
+    String content = isentryValid
+        ? 'User Description: $userDescription\nGitHub: $gitHub\nLinkedIn: $linkedIn\nSkills: $skills\nProjects: $projects\n'
+        : "Please enter every details!";
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Invalid input'),
-        content: const Text(
-            'Please make sure a valid title, amount, date and category was entered.'),
+        title: Text(isentryValid ? "Check Entry Details" : 'Invalid input'),
+        content: Text(content),
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.pop(ctx);
+              isentryValid
+                  ? Navigator.pushReplacement(context, MaterialPageRoute(
+                      builder: (context) {
+                        return Center(
+                          child: Text("next page"),
+                        );
+                      },
+                    ))
+                  : Navigator.pop(context);
             },
             child: const Text('Okay'),
           ),

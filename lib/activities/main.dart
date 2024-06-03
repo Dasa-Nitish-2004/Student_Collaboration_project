@@ -99,6 +99,13 @@ class _signInPageState extends State<signInPage> {
         ),
       );
     } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Unsuccessfull to register :$email try again"),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      _googleSignIn.disconnect();
       print(error);
     } finally {
       setState(() {});
