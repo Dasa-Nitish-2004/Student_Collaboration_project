@@ -8,37 +8,76 @@ import 'package:shared_preferences/shared_preferences.dart';
 class SkillPage extends StatefulWidget {
   const SkillPage({Key? key, required this.title}) : super(key: key);
   final String title;
+
   @override
   State<SkillPage> createState() => _SkillPageState();
 }
 
 class _SkillPageState extends State<SkillPage> {
+  var user_info = {};
   final TextEditingController userDescriptionController =
       TextEditingController();
   final TextEditingController gitHubController = TextEditingController();
   final TextEditingController linkedInController = TextEditingController();
   final List<Map<String, TextEditingController>> skillControllers = [];
   final List<Map<String, TextEditingController>> projectControllers = [];
-
-  // final List<String> skillSuggestions = data.skills;
   final List<String> skillSuggestions = [];
-  // final List<String> actualSkills = [];
 
   @override
   void initState() {
     super.initState();
-    // _addSkill(); // Initial skill field
-    // _addProject(); // Initial project field
     getSkills();
   }
 
   void getSkills() async {
-    var skills = await data.getskills;
-    skills.forEach((element) {
-      skillSuggestions.add(element.toLowerCase());
+    var skills = await data
+        .getskills; // Assuming data.getskills returns a Future<List<String>>
+    setState(() {
+      skills.forEach((element) {
+        skillSuggestions.add(element.toLowerCase());
+      });
     });
-    // actualSkills.addAll(skillSuggestions);
-    print("********$skillSuggestions#####################");
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Center(
+          child: CircularProgressIndicator(),
+        );
+      },
+    );
+    var pref = await SharedPreferences.getInstance();
+    String? email = pref.getString("email");
+
+    if (email != null) {
+      Future<Map> userDataFuture = data.getUserData(email);
+
+      // Use the fetched user data
+      userDataFuture.then((userData) {
+        setState(() {
+          user_info["skills"] = userData['skill'];
+          user_info["projects"] = userData['projects'];
+          user_info["github"] = userData['github'];
+          user_info["linkedin"] = userData['linkedin'];
+          user_info["user_desc"] = userData['user_description'];
+
+          userDescriptionController.text = user_info["user_desc"];
+          gitHubController.text = user_info["github"];
+          linkedInController.text = user_info["linkedin"];
+
+          for (var skill in user_info['skills']) {
+            _addSkill(skill);
+          }
+          for (var project in user_info['projects']) {
+            _addProject(project);
+          }
+        });
+        Navigator.pop(context);
+      }).catchError((error) {
+        print('Error fetching user data: $error');
+      });
+    } else {
+      print('No email found in SharedPreferences');
+    }
   }
 
   @override
@@ -57,21 +96,23 @@ class _SkillPageState extends State<SkillPage> {
     super.dispose();
   }
 
-  void _addSkill() {
+  void _addSkill(Map skill) {
     setState(() {
-      skillControllers.add({
-        'skill': TextEditingController(),
-        'description': TextEditingController(),
-      });
+      var skillController = {
+        'skill': TextEditingController(text: skill['skill']),
+        'description': TextEditingController(text: skill['description']),
+      };
+      skillControllers.add(skillController);
     });
   }
 
-  void _addProject() {
+  void _addProject(Map project) {
     setState(() {
-      projectControllers.add({
-        'project': TextEditingController(),
-        'description': TextEditingController(),
-      });
+      var projectController = {
+        'project': TextEditingController(text: project['project']),
+        'description': TextEditingController(text: project['description']),
+      };
+      projectControllers.add(projectController);
     });
   }
 
@@ -98,11 +139,8 @@ class _SkillPageState extends State<SkillPage> {
     bool isentryValid = true;
     List dup_skills = [];
     List dup_projects = [];
-    final skills = skillControllers.map((skill) {
-      // data.skills.add(skill['skill']!.text);
-      // DataFile().addSkill();
-      // DataFile().addSkill(skill['skill']!.text);
 
+    final skills = skillControllers.map((skill) {
       if (skill['skill']!.text.trim().isNotEmpty) {
         if (!dup_skills.contains(skill['skill']!.text)) {
           dup_skills.add(skill['skill']!.text);
@@ -113,11 +151,10 @@ class _SkillPageState extends State<SkillPage> {
         } else {
           isentryValid = false;
         }
-      } else {
-        // return null;
       }
     }).toList();
     skills.removeNull();
+
     final projects = projectControllers.map((project) {
       if (project['project']!.text.trim().isNotEmpty) {
         if (!dup_projects.contains(project['project']!.text)) {
@@ -129,25 +166,26 @@ class _SkillPageState extends State<SkillPage> {
         } else {
           isentryValid = false;
         }
-      } else {
-        // return null;
       }
     }).toList();
     projects.removeNull();
+
     if (userDescription.isEmpty || gitHub.isEmpty || linkedIn.isEmpty) {
       isentryValid = false;
     }
 
     String content = isentryValid
         ? 'User Description: $userDescription\nGitHub: $gitHub\nLinkedIn: $linkedIn\nSkills: $skills\nProjects: $projects\n'
-        : "Please enter every details!\ncheck no duplicate skills and projects";
+        : "Please enter every detail! Check for duplicate skills and projects.";
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(isentryValid ? "Check Entry Details" : 'Invalid input'),
         content: Container(
-            height: 300, child: SingleChildScrollView(child: Text(content))),
+          height: 300,
+          child: SingleChildScrollView(child: Text(content)),
+        ),
         actions: [
           TextButton(
             onPressed: () async {
@@ -157,9 +195,7 @@ class _SkillPageState extends State<SkillPage> {
                   showDialog(
                     context: context,
                     builder: (context) {
-                      return Center(
-                        child: CircularProgressIndicator(),
-                      );
+                      return Center(child: CircularProgressIndicator());
                     },
                   );
                   var prefs = await SharedPreferences.getInstance();
@@ -171,7 +207,6 @@ class _SkillPageState extends State<SkillPage> {
                       user_desc: userDescription,
                       skills: skills,
                       projects: projects);
-                  // db.close();
                   Navigator.pop(context);
                   Navigator.pop(context);
                   Navigator.pushReplacement(context, MaterialPageRoute(
@@ -182,7 +217,7 @@ class _SkillPageState extends State<SkillPage> {
                 } catch (e) {
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                     content:
-                        Text("ERROR! Check internet connectivity. try again"),
+                        Text("ERROR! Check internet connectivity. Try again."),
                     duration: Duration(seconds: 3),
                   ));
                 } finally {
@@ -197,19 +232,6 @@ class _SkillPageState extends State<SkillPage> {
         ],
       ),
     );
-    var db;
-    try {
-      db = await MongoDb().getConnection();
-      var data = await MongoDb().getIds(db);
-      print(data);
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text("Check internet connectivity"),
-        duration: Duration(seconds: 3),
-      ));
-    } finally {}
-    db.close();
-    return;
   }
 
   @override
@@ -221,9 +243,7 @@ class _SkillPageState extends State<SkillPage> {
         leading: Icon(Icons.article),
         actions: [
           IconButton(
-            icon: Icon(
-              Icons.arrow_right_alt_rounded,
-            ),
+            icon: Icon(Icons.arrow_right_alt_rounded),
             onPressed: () {
               Navigator.pushReplacement(
                   context,
@@ -249,12 +269,9 @@ class _SkillPageState extends State<SkillPage> {
                   borderRadius: BorderRadius.circular(22),
                 ),
                 hintText: "User Description",
-                helperText: "basic info that you want to show",
-                prefixIcon: Icon(
-                  Icons.person,
-                  color: Colors.deepPurple,
-                  size: 24,
-                ),
+                helperText: "Basic info that you want to show",
+                prefixIcon:
+                    Icon(Icons.person, color: Colors.deepPurple, size: 24),
               ),
             ),
             SizedBox(height: 10),
@@ -267,10 +284,7 @@ class _SkillPageState extends State<SkillPage> {
                   borderRadius: BorderRadius.circular(22),
                 ),
                 hintText: "GitHub",
-                prefixIcon: Image.asset(
-                  "assets/imgs/github3D.png",
-                  height: 24,
-                ),
+                prefixIcon: Image.asset("assets/imgs/github3D.png", height: 24),
               ),
             ),
             SizedBox(height: 10),
@@ -284,10 +298,7 @@ class _SkillPageState extends State<SkillPage> {
                   borderRadius: BorderRadius.circular(22),
                 ),
                 hintText: "LinkedIn",
-                prefixIcon: Image.asset(
-                  "assets/imgs/linkedin.png",
-                  height: 24,
-                ),
+                prefixIcon: Image.asset("assets/imgs/linkedin.png", height: 24),
               ),
             ),
             SizedBox(height: 20),
@@ -320,9 +331,9 @@ class _SkillPageState extends State<SkillPage> {
                         TextEditingController textEditingController,
                         FocusNode focusNode,
                         VoidCallback onFieldSubmitted) {
+                      textEditingController.text = skill['skill']!.text;
                       return TextField(
                         onChanged: (value) {
-                          // skillSuggestions.add(textEditingController.text);
                           skill['skill']!.text = value;
                         },
                         controller: textEditingController,
@@ -332,9 +343,9 @@ class _SkillPageState extends State<SkillPage> {
                             borderRadius: BorderRadius.circular(22),
                           ),
                           hintText: "Skill",
-                          helperText: "click plus for new skill",
+                          helperText: "Click plus for new skill",
                           prefixIcon: Icon(
-                            Icons.person,
+                            Icons.text_snippet_rounded,
                             color: Colors.deepPurple,
                             size: 24,
                           ),
@@ -367,7 +378,7 @@ class _SkillPageState extends State<SkillPage> {
               );
             }).toList(),
             ElevatedButton(
-              onPressed: _addSkill,
+              onPressed: () => _addSkill({'skill': '', 'description': ''}),
               child: Text("Add Skill"),
             ),
             SizedBox(height: 20),
@@ -395,11 +406,8 @@ class _SkillPageState extends State<SkillPage> {
                         borderRadius: BorderRadius.circular(22),
                       ),
                       hintText: "Project",
-                      prefixIcon: Icon(
-                        Icons.work,
-                        color: Colors.deepPurple,
-                        size: 24,
-                      ),
+                      prefixIcon:
+                          Icon(Icons.work, color: Colors.deepPurple, size: 24),
                       suffixIcon: IconButton(
                         icon: Icon(Icons.delete, color: Colors.red),
                         onPressed: () => _removeProject(index),
@@ -424,7 +432,7 @@ class _SkillPageState extends State<SkillPage> {
               );
             }).toList(),
             ElevatedButton(
-              onPressed: _addProject,
+              onPressed: () => _addProject({'project': '', 'description': ''}),
               child: Text("Add Project"),
             ),
             SizedBox(height: 20),

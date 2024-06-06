@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:mongo_dart/mongo_dart.dart';
 import 'package:scolab/DatabaseService/databaseServices.dart';
 
@@ -12,6 +14,14 @@ Future<List> get getskills async {
   // print(skill);
   db.close();
   return skill;
+}
+
+Future<Map> getUserData(String email) async {
+  Db db = await MongoDb().getConnection();
+  var info = await db.collection('user_info');
+  var k = await info.find(where.eq("id", email)).toList();
+  db.close();
+  return k[0];
 }
 
 List<String> skills = [
