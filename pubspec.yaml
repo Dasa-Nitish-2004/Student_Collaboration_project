@@ -44,6 +44,7 @@ dependencies:
   connectivity_plus: ^6.0.3
   provider: ^6.1.2
   flutter_typeahead: ^5.2.0
+  list_utilities: ^1.0.3
 
 dev_dependencies:
   flutter_test:

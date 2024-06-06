@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:provider/provider.dart';
 import 'package:scolab/DatabaseService/databaseServices.dart';
+import 'package:scolab/activities/HomePage.dart';
 import 'package:scolab/activities/skillsPage.dart';
 import 'package:mongo_dart/mongo_dart.dart' as mongo;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,12 +23,15 @@ class MyApp extends StatelessWidget {
 
   void checkLog() async {
     var prefs = await SharedPreferences.getInstance();
-    if (prefs.getString("email") == null) {
+    if (prefs.getString("email") == null || prefs.getString("email") == "") {
       loggedin = "";
     } else {
+      print(
+          "saved email found^^^^^^^^^^^^^^^^${prefs.getString("email")}^^^^^^^^^^^^^");
       loggedin = prefs.getString("email")!;
       if (!await MongoDb()
           .checkUserExists(await MongoDb().getConnection(), loggedin)) {
+        prefs.setString('email', "");
         loggedin = "";
       }
     }
@@ -37,17 +41,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
-      home: loggedin == ""
-          ? signInPage()
-          : SkillPage(
-              title: 'Info & Skill',
-            ),
-    );
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+          useMaterial3: true,
+        ),
+        home: loggedin == "" ? signInPage() : HomeScreen());
   }
 }
 
@@ -117,13 +116,20 @@ class _signInPageState extends State<signInPage> {
     try {
       var result = await _googleSignIn.signIn();
       email = result!.email;
-
+      showDialog(
+        context: context,
+        builder: (context) {
+          return Center(
+            child: CircularProgressIndicator(),
+          );
+        },
+      );
       if (data.contains(email) ||
           !await MongoDb()
               .checkUserExists(await MongoDb().getConnection(), email)) {
         var prefs = await SharedPreferences.getInstance();
         await prefs.setString('email', email);
-
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text("successfull signed in $email"),
@@ -139,7 +145,7 @@ class _signInPageState extends State<signInPage> {
         ));
       } else {
         _googleSignIn.disconnect();
-
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text("failed to Sign In please Register the account"),

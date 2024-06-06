@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:scolab/DatabaseService/databaseServices.dart';
+import 'package:scolab/activities/HomePage.dart';
 import 'package:scolab/data.dart' as data;
+import 'package:list_utilities/list_utilities.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SkillPage extends StatefulWidget {
   const SkillPage({Key? key, required this.title}) : super(key: key);
   final String title;
-
   @override
   State<SkillPage> createState() => _SkillPageState();
 }
@@ -18,13 +20,25 @@ class _SkillPageState extends State<SkillPage> {
   final List<Map<String, TextEditingController>> skillControllers = [];
   final List<Map<String, TextEditingController>> projectControllers = [];
 
-  final List<String> skillSuggestions = data.skills;
+  // final List<String> skillSuggestions = data.skills;
+  final List<String> skillSuggestions = [];
+  // final List<String> actualSkills = [];
 
   @override
   void initState() {
     super.initState();
-    _addSkill(); // Initial skill field
-    _addProject(); // Initial project field
+    // _addSkill(); // Initial skill field
+    // _addProject(); // Initial project field
+    getSkills();
+  }
+
+  void getSkills() async {
+    var skills = await data.getskills;
+    skills.forEach((element) {
+      skillSuggestions.add(element.toLowerCase());
+    });
+    // actualSkills.addAll(skillSuggestions);
+    print("********$skillSuggestions#####################");
   }
 
   @override
@@ -81,73 +95,111 @@ class _SkillPageState extends State<SkillPage> {
     final userDescription = userDescriptionController.text;
     final gitHub = gitHubController.text;
     final linkedIn = linkedInController.text;
+    bool isentryValid = true;
+    List dup_skills = [];
+    List dup_projects = [];
     final skills = skillControllers.map((skill) {
       // data.skills.add(skill['skill']!.text);
       // DataFile().addSkill();
       // DataFile().addSkill(skill['skill']!.text);
 
       if (skill['skill']!.text.trim().isNotEmpty) {
-        return {
-          'skill': skill['skill']!.text,
-          'description': skill['description']!.text,
-        };
+        if (!dup_skills.contains(skill['skill']!.text)) {
+          dup_skills.add(skill['skill']!.text);
+          return {
+            'skill': skill['skill']!.text,
+            'description': skill['description']!.text,
+          };
+        } else {
+          isentryValid = false;
+        }
       } else {
-        return null;
+        // return null;
       }
     }).toList();
+    skills.removeNull();
     final projects = projectControllers.map((project) {
       if (project['project']!.text.trim().isNotEmpty) {
-        return {
-          'project': project['project']!.text,
-          'description': project['description']!.text,
-        };
+        if (!dup_projects.contains(project['project']!.text)) {
+          dup_projects.add(project['project']!.text);
+          return {
+            'project': project['project']!.text,
+            'description': project['description']!.text,
+          };
+        } else {
+          isentryValid = false;
+        }
       } else {
-        return null;
+        // return null;
       }
     }).toList();
-
-    print('User Description: $userDescription');
-    print('GitHub: $gitHub');
-    print('LinkedIn: $linkedIn');
-    print('Skills: $skills');
-    print('Projects: $projects');
-
-    bool isentryValid = true;
-
+    projects.removeNull();
     if (userDescription.isEmpty || gitHub.isEmpty || linkedIn.isEmpty) {
       isentryValid = false;
     }
 
     String content = isentryValid
         ? 'User Description: $userDescription\nGitHub: $gitHub\nLinkedIn: $linkedIn\nSkills: $skills\nProjects: $projects\n'
-        : "Please enter every details!";
+        : "Please enter every details!\ncheck no duplicate skills and projects";
 
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(isentryValid ? "Check Entry Details" : 'Invalid input'),
-        content: Text(content),
+        content: Container(
+            height: 300, child: SingleChildScrollView(child: Text(content))),
         actions: [
           TextButton(
-            onPressed: () {
-              isentryValid
-                  ? Navigator.pushReplacement(context, MaterialPageRoute(
-                      builder: (context) {
-                        return Center(
-                          child: Text("next page"),
-                        );
-                      },
-                    ))
-                  : Navigator.pop(context);
+            onPressed: () async {
+              if (isentryValid) {
+                var db;
+                try {
+                  showDialog(
+                    context: context,
+                    builder: (context) {
+                      return Center(
+                        child: CircularProgressIndicator(),
+                      );
+                    },
+                  );
+                  var prefs = await SharedPreferences.getInstance();
+                  var email = prefs.getString("email");
+                  db = await MongoDb().getConnection();
+                  MongoDb().modifyUser(db, email!,
+                      github: gitHub,
+                      linkedin: linkedIn,
+                      user_desc: userDescription,
+                      skills: skills,
+                      projects: projects);
+                  // db.close();
+                  Navigator.pop(context);
+                  Navigator.pop(context);
+                  Navigator.pushReplacement(context, MaterialPageRoute(
+                    builder: (context) {
+                      return HomeScreen();
+                    },
+                  ));
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content:
+                        Text("ERROR! Check internet connectivity. try again"),
+                    duration: Duration(seconds: 3),
+                  ));
+                } finally {
+                  db.close();
+                }
+              } else {
+                Navigator.pop(context);
+              }
             },
             child: const Text('Okay'),
           ),
         ],
       ),
     );
-
+    var db;
     try {
-      var db = await MongoDb().getConnection();
+      db = await MongoDb().getConnection();
       var data = await MongoDb().getIds(db);
       print(data);
     } catch (e) {
@@ -155,8 +207,8 @@ class _SkillPageState extends State<SkillPage> {
         content: Text("Check internet connectivity"),
         duration: Duration(seconds: 3),
       ));
-    }
-
+    } finally {}
+    db.close();
     return;
   }
 
@@ -173,7 +225,11 @@ class _SkillPageState extends State<SkillPage> {
               Icons.arrow_right_alt_rounded,
             ),
             onPressed: () {
-              print(data.skills);
+              Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => HomeScreen(),
+                  ));
             },
           )
         ],
@@ -265,6 +321,10 @@ class _SkillPageState extends State<SkillPage> {
                         FocusNode focusNode,
                         VoidCallback onFieldSubmitted) {
                       return TextField(
+                        onChanged: (value) {
+                          // skillSuggestions.add(textEditingController.text);
+                          skill['skill']!.text = value;
+                        },
                         controller: textEditingController,
                         focusNode: focusNode,
                         decoration: InputDecoration(
@@ -281,16 +341,6 @@ class _SkillPageState extends State<SkillPage> {
                           suffixIcon: IconButton(
                             icon: Icon(Icons.delete, color: Colors.red),
                             onPressed: () => _removeSkill(index),
-                          ),
-                          suffix: IconButton(
-                            icon: Icon(
-                              Icons.add,
-                              color: Colors.black,
-                            ),
-                            onPressed: () {
-                              data.skills.add(textEditingController.text);
-                              skill['skill']!.text = textEditingController.text;
-                            },
                           ),
                         ),
                       );

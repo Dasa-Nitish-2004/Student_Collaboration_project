@@ -9,13 +9,14 @@ Future<List> get getskills async {
   k.forEach((element) {
     skill = element['skills'];
   });
-  print(skill);
+  // print(skill);
+  db.close();
   return skill;
 }
 
 List<String> skills = [
-  "Python",
-  "JavaScript",
+  "python",
+  "javaScript",
   "Java",
   "C#",
   "C++",

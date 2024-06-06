@@ -19,6 +19,47 @@ class MongoDb {
     return data;
   }
 
+  Future<void> modifyUser(Db db, String email,
+      {String? user_desc,
+      String? github,
+      String? linkedin,
+      List? skills,
+      List? projects}) async {
+    print('User Description: $user_desc');
+    print('GitHub: $github');
+    print('LinkedIn: $linkedin');
+    print('Skills: $skills');
+    print('Projects: $projects');
+
+    // Start with an empty modifier builder
+    var modifier = modify;
+
+    // Add each field to the modifier if it is not null
+    if (user_desc != null) {
+      modifier = modifier.set('user_description', user_desc);
+    }
+    if (github != null) {
+      modifier = modifier.set('github', github);
+    }
+    if (linkedin != null) {
+      modifier = modifier.set('linkedin', linkedin);
+    }
+    if (skills != null && skills.isNotEmpty) {
+      modifier = modifier.set('skill', skills);
+    }
+    if (projects != null && projects.isNotEmpty) {
+      modifier = modifier.set('projects', projects);
+    }
+
+    // Perform the update
+    if (modifier.map.isNotEmpty) {
+      await db.collection("user_info").updateOne(
+            where.eq('id', email),
+            modifier,
+          );
+    }
+  }
+
   Future<List> getIds(Db db) async {
     List obj;
     List data = [];
@@ -54,8 +95,8 @@ class MongoDb {
       await user.insert({
         "id": mail,
         "type": "user",
-        "skill": {},
-        'projects': {},
+        "skill": [],
+        'projects': [],
         'github': "",
         'linkedin': '',
         'user_description': '',
