@@ -1,5 +1,6 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:provider/provider.dart';
 import 'package:scolab/DatabaseService/databaseServices.dart';
@@ -7,6 +8,7 @@ import 'package:scolab/activities/HomePage.dart';
 import 'package:scolab/activities/skillsPage.dart';
 import 'package:mongo_dart/mongo_dart.dart' as mongo;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:internet_connection_checker_plus/internet_connection_checker_plus.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,10 +25,42 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   String loggedin = "";
   bool status = false;
+  bool isConnected = false;
+  StreamSubscription? _internetConnectionStreamSubscription;
+
   @override
   void initState() {
     super.initState();
-    checkLog();
+
+    _internetConnectionStreamSubscription =
+        InternetConnection().onStatusChange.listen(
+      (event) {
+        switch (event) {
+          case InternetStatus.connected:
+            setState(() {
+              isConnected = true;
+              checkLog();
+            });
+            break;
+          case InternetStatus.disconnected:
+            setState(() {
+              isConnected = false;
+            });
+            break;
+          default:
+            setState(() {
+              isConnected = false;
+            });
+            break;
+        }
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _internetConnectionStreamSubscription?.cancel();
+    super.dispose();
   }
 
   void checkLog() async {
@@ -58,10 +92,18 @@ class _MyAppState extends State<MyApp> {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: status
-          ? (loggedin.isEmpty ? signInPage() : HomeScreen())
+      home: isConnected
+          ? status
+              ? (loggedin.isEmpty ? signInPage() : HomeScreen())
+              : Center(
+                  child: CircularProgressIndicator(),
+                )
           : Center(
-              child: CircularProgressIndicator(),
+              child: Scaffold(
+                body: Center(
+                  child: Text("Internet not Connected"),
+                ),
+              ),
             ),
     );
   }
