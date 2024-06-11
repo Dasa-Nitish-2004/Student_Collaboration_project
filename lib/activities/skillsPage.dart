@@ -1,8 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:scolab/DatabaseService/databaseServices.dart';
 import 'package:scolab/activities/HomePage.dart';
 import 'package:scolab/data.dart' as data;
-import 'package:list_utilities/list_utilities.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SkillPage extends StatefulWidget {
@@ -53,10 +53,33 @@ class _SkillPageState extends State<SkillPage> {
     }
 
     try {
-      var userData = await data.getUserData(email);
+      String? userDescription = prefs.getString("user_description");
+      String? gitHub = prefs.getString("github");
+      String? linkedIn = prefs.getString("linkedin");
+      String? skillsString = prefs.getString("skills");
+      String? projectsString = prefs.getString("projects");
+
+      List<Map<String, String>> skills = skillsString != null
+          ? (List<Map<String, String>>.from(json
+              .decode(skillsString)
+              .map((item) => Map<String, String>.from(item))))
+          : [];
+      List<Map<String, String>> projects = projectsString != null
+          ? (List<Map<String, String>>.from(json
+              .decode(projectsString)
+              .map((item) => Map<String, String>.from(item))))
+          : [];
+
       setState(() {
-        userInfo = userData;
-        _populateUserData(userData);
+        userInfo = {
+          'email': email,
+          'user_description': userDescription ?? '',
+          'github': gitHub ?? '',
+          'linkedin': linkedIn ?? '',
+          'skills': skills,
+          'projects': projects,
+        };
+        _populateUserData(userInfo);
       });
       Navigator.pop(context); // Close loading dialog
     } catch (error) {
@@ -94,7 +117,7 @@ class _SkillPageState extends State<SkillPage> {
     super.dispose();
   }
 
-  void _addSkill(Map skill) {
+  void _addSkill(Map<String, String> skill) {
     setState(() {
       skillControllers.add({
         'skill': TextEditingController(text: skill['skill']),
@@ -103,7 +126,7 @@ class _SkillPageState extends State<SkillPage> {
     });
   }
 
-  void _addProject(Map project) {
+  void _addProject(Map<String, String> project) {
     setState(() {
       projectControllers.add({
         'project': TextEditingController(text: project['project']),
@@ -195,6 +218,14 @@ class _SkillPageState extends State<SkillPage> {
             skills: skills,
             projects: projects);
         db.close();
+
+        // Update SharedPreferences
+        await prefs.setString("user_description", userDescription);
+        await prefs.setString("github", gitHub);
+        await prefs.setString("linkedin", linkedIn);
+        await prefs.setString("skills", json.encode(skills));
+        await prefs.setString("projects", json.encode(projects));
+
         Navigator.pop(context); // Close loading dialog
         Navigator.pushReplacement(
             context, MaterialPageRoute(builder: (context) => HomeScreen()));
@@ -257,8 +288,11 @@ class _SkillPageState extends State<SkillPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildTextField(userDescriptionController, "User Description",
-                "Basic info that you want to show", Icons.person),
+            SizedBox(height: 20),
+            _buildSectionHeader("Profile"),
+            SizedBox(height: 10),
+            _buildTextField(userDescriptionController, "Description",
+                "User Description", Icons.person),
             SizedBox(height: 10),
             _buildTextField(
                 gitHubController, "GitHub", "GitHub Profile URL", Icons.link),
