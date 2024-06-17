@@ -1,4 +1,5 @@
 import 'package:mongo_dart/mongo_dart.dart';
+import 'package:scolab/request_bluePrint.dart';
 
 class MongoDb {
   Future<Db> getConnection() async {
@@ -9,28 +10,12 @@ class MongoDb {
     return db;
   }
 
-  Future<List> getMovie(Db db) async {
-    List data = [];
-    var movies = await db.collection("movies");
-    data = await movies
-        .find(where.sortBy('title').fields(['title']).skip(20).limit(20))
-        .toList();
-
-    return data;
-  }
-
   Future<void> modifyUser(Db db, String email,
       {String? user_desc,
       String? github,
       String? linkedin,
       List? skills,
       List? projects}) async {
-    print('User Description: $user_desc');
-    print('GitHub: $github');
-    print('LinkedIn: $linkedin');
-    print('Skills: $skills');
-    print('Projects: $projects');
-
     // Start with an empty modifier builder
     var modifier = modify;
 
@@ -60,37 +45,32 @@ class MongoDb {
     }
   }
 
+  Future<void> updateSkill(Db db, List<String> skillSuggestions) async {
+    var skill = skillSuggestions.toSet();
+    skillSuggestions = skill.toList();
+    var collection = db.collection('availskill');
+    await collection.updateOne(
+      where.eq('type', 'skill'),
+      modify.set('skills', skillSuggestions),
+      upsert: true, // This will insert the skill if it doesn't exist
+    );
+  }
+
   Future<List> getIds(Db db) async {
     List obj;
     List data = [];
     var movies = await db.collection("user_info");
-    print("accepted");
     obj = (await movies.find(where.sortBy('id').fields(['id'])).toList());
     obj.forEach(
       (ele) {
         data.add(ele['id']);
       },
     );
-    print(data);
     return data;
   }
 
   void addUser(Db db, String mail) async {
     var user = await db.collection("user_info");
-    // await user.insert({
-    //   "id": "mail",
-    //   "type": "user",
-    //   "skill": {'python': 'basics of python', 'flutter': 'basic projects'},
-    //   'projects': {
-    //     'student_attendence': {
-    //       'description': 'general purpose attendence',
-    //       'link': "www.google.com"
-    //     },
-    //   },
-    //   'github': "dasa nitish 2004",
-    //   'linkedin': 'dasa nitish',
-    //   'user_description': 'I am good and passinate guy',
-    // });
     if (await checkUserExists(db, mail)) {
       await user.insert({
         "id": mail,
@@ -104,10 +84,14 @@ class MongoDb {
     }
   }
 
+  Future<void> addRequest(Db db, Request request) async {
+    var collection = db.collection('requests');
+    await collection.insert(request.toMap());
+  }
+
   Future checkUserExists(Db db, String email) async {
     List obj;
     var movies = await db.collection("user_info");
-    print("in check user !!!!!!!!!!!!!!!!!!!!!!!!!!!");
     obj = (await movies.find(where.eq('id', email)).toList());
     if (obj.isEmpty) {
       return true; // user doesn't exists free to create user

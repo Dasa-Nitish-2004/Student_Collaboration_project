@@ -1,8 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:scolab/DatabaseService/databaseServices.dart';
 import 'package:scolab/activities/HomePage.dart';
 import 'package:scolab/data.dart' as data;
+import 'package:list_utilities/list_utilities.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SkillPage extends StatefulWidget {
@@ -35,6 +35,7 @@ class _SkillPageState extends State<SkillPage> {
       var skills = await data.getskills;
       setState(() {
         skillSuggestions.addAll(skills.map((e) => e.toLowerCase()));
+        print(skillSuggestions);
       });
     } catch (error) {
       _showErrorDialog("Failed to load skills. Please try again.");
@@ -53,33 +54,10 @@ class _SkillPageState extends State<SkillPage> {
     }
 
     try {
-      String? userDescription = prefs.getString("user_description");
-      String? gitHub = prefs.getString("github");
-      String? linkedIn = prefs.getString("linkedin");
-      String? skillsString = prefs.getString("skills");
-      String? projectsString = prefs.getString("projects");
-
-      List<Map<String, String>> skills = skillsString != null
-          ? (List<Map<String, String>>.from(json
-              .decode(skillsString)
-              .map((item) => Map<String, String>.from(item))))
-          : [];
-      List<Map<String, String>> projects = projectsString != null
-          ? (List<Map<String, String>>.from(json
-              .decode(projectsString)
-              .map((item) => Map<String, String>.from(item))))
-          : [];
-
+      var userData = await data.getUserData(email);
       setState(() {
-        userInfo = {
-          'email': email,
-          'user_description': userDescription ?? '',
-          'github': gitHub ?? '',
-          'linkedin': linkedIn ?? '',
-          'skills': skills,
-          'projects': projects,
-        };
-        _populateUserData(userInfo);
+        userInfo = userData;
+        _populateUserData(userData);
       });
       Navigator.pop(context); // Close loading dialog
     } catch (error) {
@@ -93,7 +71,7 @@ class _SkillPageState extends State<SkillPage> {
     gitHubController.text = userData['github'] ?? '';
     linkedInController.text = userData['linkedin'] ?? '';
 
-    for (var skill in userData['skills'] ?? []) {
+    for (var skill in userData['skill'] ?? []) {
       _addSkill(skill);
     }
     for (var project in userData['projects'] ?? []) {
@@ -117,7 +95,7 @@ class _SkillPageState extends State<SkillPage> {
     super.dispose();
   }
 
-  void _addSkill(Map<String, String> skill) {
+  void _addSkill(Map skill) {
     setState(() {
       skillControllers.add({
         'skill': TextEditingController(text: skill['skill']),
@@ -126,7 +104,7 @@ class _SkillPageState extends State<SkillPage> {
     });
   }
 
-  void _addProject(Map<String, String> project) {
+  void _addProject(Map project) {
     setState(() {
       projectControllers.add({
         'project': TextEditingController(text: project['project']),
@@ -217,15 +195,8 @@ class _SkillPageState extends State<SkillPage> {
             user_desc: userDescription,
             skills: skills,
             projects: projects);
+        await MongoDb().updateSkill(db, skillSuggestions);
         db.close();
-
-        // Update SharedPreferences
-        await prefs.setString("user_description", userDescription);
-        await prefs.setString("github", gitHub);
-        await prefs.setString("linkedin", linkedIn);
-        await prefs.setString("skills", json.encode(skills));
-        await prefs.setString("projects", json.encode(projects));
-
         Navigator.pop(context); // Close loading dialog
         Navigator.pushReplacement(
             context, MaterialPageRoute(builder: (context) => HomeScreen()));
@@ -288,11 +259,8 @@ class _SkillPageState extends State<SkillPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SizedBox(height: 20),
-            _buildSectionHeader("Profile"),
-            SizedBox(height: 10),
-            _buildTextField(userDescriptionController, "Description",
-                "User Description", Icons.person),
+            _buildTextField(userDescriptionController, "User Description",
+                "Basic info that you want to show", Icons.person),
             SizedBox(height: 10),
             _buildTextField(
                 gitHubController, "GitHub", "GitHub Profile URL", Icons.link),
@@ -361,6 +329,68 @@ class _SkillPageState extends State<SkillPage> {
     );
   }
 
+  // Widget _buildSkillEntry(int index, Map<String, TextEditingController> skill) {
+  //   return Column(
+  //     children: [
+  //       Autocomplete<String>(
+  //         optionsBuilder: (TextEditingValue textEditingValue) {
+  //           if (textEditingValue.text.isEmpty) {
+  //             return const Iterable<String>.empty();
+  //           }
+  //           return skillSuggestions.where((String option) {
+  //             return option
+  //                 .toLowerCase()
+  //                 .contains(textEditingValue.text.toLowerCase());
+  //           });
+  //         },
+  //         fieldViewBuilder: (BuildContext context,
+  //             TextEditingController textEditingController,
+  //             FocusNode focusNode,
+  //             VoidCallback onFieldSubmitted) {
+  //           textEditingController.text = skill['skill']!.text;
+  //           return TextField(
+  //             onChanged: (value) {
+  //               skill['skill']!.text = value;
+  //             },
+  //             controller: textEditingController,
+  //             focusNode: focusNode,
+  //             decoration: InputDecoration(
+  //                 border: OutlineInputBorder(
+  //                   borderRadius: BorderRadius.circular(22),
+  //                 ),
+  //                 hintText: "Skill",
+  //                 helperText: "Click plus for new skill",
+  //                 prefixIcon: Icon(Icons.text_snippet_rounded,
+  //                     color: Colors.deepPurple, size: 24),
+  //                 suffixIcon: IconButton(
+  //                   icon: Icon(Icons.delete, color: Colors.red),
+  //                   onPressed: () => _removeSkill(index),
+  //                 ),
+  //                 suffix: IconButton(onPressed: () {}, icon: Icon(Icons.add))),
+  //           );
+  //         },
+  //         onSelected: (String selection) {
+  //           skill['skill']!.text = selection;
+  //         },
+  //       ),
+  //       SizedBox(height: 10),
+  //       TextField(
+  //         controller: skill['description'],
+  //         maxLines: 5,
+  //         maxLength: 500,
+  //         minLines: 1,
+  //         decoration: InputDecoration(
+  //           border: OutlineInputBorder(
+  //             borderRadius: BorderRadius.circular(22),
+  //           ),
+  //           hintText: "Skill Description",
+  //         ),
+  //       ),
+  //       SizedBox(height: 20),
+  //     ],
+  //   );
+  // }
+
   Widget _buildSkillEntry(int index, Map<String, TextEditingController> skill) {
     return Column(
       children: [
@@ -381,9 +411,6 @@ class _SkillPageState extends State<SkillPage> {
               VoidCallback onFieldSubmitted) {
             textEditingController.text = skill['skill']!.text;
             return TextField(
-              onChanged: (value) {
-                skill['skill']!.text = value;
-              },
               controller: textEditingController,
               focusNode: focusNode,
               decoration: InputDecoration(
@@ -394,9 +421,26 @@ class _SkillPageState extends State<SkillPage> {
                 helperText: "Click plus for new skill",
                 prefixIcon: Icon(Icons.text_snippet_rounded,
                     color: Colors.deepPurple, size: 24),
-                suffixIcon: IconButton(
-                  icon: Icon(Icons.delete, color: Colors.red),
-                  onPressed: () => _removeSkill(index),
+                suffixIcon: Row(
+                  mainAxisSize: MainAxisSize
+                      .min, // Added to ensure Row takes minimum width
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.add, color: Colors.black),
+                      onPressed: () {
+                        skill['skill']!.text = textEditingController.text;
+                        skillSuggestions.add(textEditingController.text);
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text("skill added successfully"),
+                          duration: Duration(seconds: 1),
+                        ));
+                      },
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.delete, color: Colors.red),
+                      onPressed: () => _removeSkill(index),
+                    ),
+                  ],
                 ),
               ),
             );

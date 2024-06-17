@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:scolab/HomePageScreens/requestsPage.dart';
 import 'package:scolab/activities/skillsPage.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -11,15 +12,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
-  static const List<Widget> _widgetOptions = <Widget>[
-    Scaffold(
-      body: Center(
-        child: Text(
-          'Home Page',
-          style: TextStyle(fontSize: 35, fontWeight: FontWeight.bold),
-        ),
-      ),
-    ),
+  static List<Widget> _widgetOptions = <Widget>[
+    RequestsPage(),
     Center(
       child: Text(
         'Search Page',

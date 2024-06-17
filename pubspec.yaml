@@ -45,6 +45,7 @@ dependencies:
   provider: ^6.1.2
   flutter_typeahead: ^5.2.0
   list_utilities: ^1.0.3
+  intl: ^0.19.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
