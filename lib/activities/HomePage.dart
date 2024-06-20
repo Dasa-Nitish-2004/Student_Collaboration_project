@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:scolab/HomePageScreens/requestsPage.dart';
 import 'package:scolab/activities/skillsPage.dart';
+import 'package:scolab/data.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -30,9 +31,15 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
+  void initState() async {
+    await getSkill();
+    // TODO: implement initState
+    super.initState();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      drawer: Drawer(),
       appBar: AppBar(
         title: _buildSearchBar(),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
@@ -47,22 +54,69 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildSearchBar() {
     return SizedBox(
       height: 40,
-      child: TextField(
-        decoration: InputDecoration(
-          prefixIcon: Icon(Icons.search_rounded),
-          contentPadding: EdgeInsets.symmetric(vertical: 5.0, horizontal: 10.0),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(26),
-          ),
-          alignLabelWithHint: true,
-          hintText: "Search",
-        ),
-        onTap: () {
-          // Add search functionality if needed
+      child: Autocomplete<String>(
+        optionsBuilder: (TextEditingValue textEditingValue) {
+          if (textEditingValue.text.isEmpty) {
+            return const Iterable<String>.empty();
+          }
+          return dataSkills.where((String option) {
+            return option
+                .toLowerCase()
+                .contains(textEditingValue.text.toLowerCase());
+          });
+        },
+        fieldViewBuilder: (BuildContext context,
+            TextEditingController textEditingController,
+            FocusNode focusNode,
+            VoidCallback onFieldSubmitted) {
+          return TextField(
+            controller: textEditingController,
+            focusNode: focusNode,
+            decoration: InputDecoration(
+              prefixIcon: Icon(Icons.search_rounded),
+              contentPadding:
+                  EdgeInsets.symmetric(vertical: 5.0, horizontal: 10.0),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(26),
+              ),
+              alignLabelWithHint: true,
+              hintText: "Search with your skill",
+            ),
+          );
+        },
+        onSelected: (String selection) {
+          Navigator.push(context, MaterialPageRoute(
+            builder: (context) {
+              return Scaffold(
+                body: Center(
+                  child: Text(selection),
+                ),
+              );
+            },
+          ));
         },
       ),
     );
   }
+  // Widget _buildSearchBar() {
+  //   return SizedBox(
+  //     height: 40,
+  //     child: TextField(
+  //       decoration: InputDecoration(
+  //         prefixIcon: Icon(Icons.search_rounded),
+  //         contentPadding: EdgeInsets.symmetric(vertical: 5.0, horizontal: 10.0),
+  //         border: OutlineInputBorder(
+  //           borderRadius: BorderRadius.circular(26),
+  //         ),
+  //         alignLabelWithHint: true,
+  //         hintText: "Search",
+  //       ),
+  //       onTap: () {
+  //         // Add search functionality if needed
+  //       },
+  //     ),
+  //   );
+  // }
 
   BottomNavigationBar _buildBottomNavigationBar() {
     return BottomNavigationBar(

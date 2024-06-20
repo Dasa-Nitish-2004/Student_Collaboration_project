@@ -8,15 +8,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 
 class AddRequestPage extends StatefulWidget {
-  void Function(Request k) addRequest;
-  AddRequestPage(void Function(Request k) this.addRequest, {super.key});
+  void Function({Request? k}) addRequest;
+  Request? k;
+  AddRequestPage(void Function({Request? k}) this.addRequest,
+      {Request? this.k, super.key});
   @override
   State<AddRequestPage> createState() => _AddRequestPageState();
 }
 
 class _AddRequestPageState extends State<AddRequestPage> {
   final List<Map<String, TextEditingController>> skillControllers = [];
-  final List<String> skillSuggestions = [];
+  List<String> skillSuggestions = [];
   final TextEditingController projectTitle = TextEditingController();
   final TextEditingController projectDescription = TextEditingController();
 
@@ -24,6 +26,47 @@ class _AddRequestPageState extends State<AddRequestPage> {
   void initState() {
     super.initState();
     _initializeSkills();
+    if (widget.k != null) {
+      _fetchUserData();
+    }
+  }
+
+  void _fetchUserData() async {
+    _showLoadingDialog();
+
+    // var prefs = await SharedPreferences.getInstance();
+    // String? email = prefs.getString("email");
+
+    // if (email == null) {
+    //   Navigator.pop(context); // Close loading dialog
+    //   _showErrorDialog("No email found in SharedPreferences.");
+    //   return;
+    // }
+
+    try {
+      // var userRequest = await data.getRequest(email, widget.k!.projectTitle);
+      setState(() {
+        // _populateUserData(userRequest);
+        _populateUserData();
+      });
+      Navigator.pop(context); // Close loading dialog
+    } catch (error) {
+      Navigator.pop(context); // Close loading dialog
+      _showErrorDialog("Error fetching user data: $error");
+    }
+  }
+
+  // void _populateUserData(Map userRequest) {
+  void _populateUserData() {
+    // projectTitle.text = userRequest['projectTitle'] ?? '';
+    // projectDescription.text = userRequest['projectDesc'] ?? '';
+    projectTitle.text = widget.k!.projectTitle ?? '';
+    projectDescription.text = widget.k!.projectDesc ?? '';
+
+    // for (var skill in userRequest['skills'] ?? []) {
+    for (var skill in widget.k!.skills ?? []) {
+      _addSkill(skill);
+    }
   }
 
   void _showLoadingDialog() {
@@ -56,7 +99,8 @@ class _AddRequestPageState extends State<AddRequestPage> {
   void _initializeSkills() async {
     _showLoadingDialog();
     try {
-      var skills = await data.getskills;
+      await data.getSkill();
+      var skills = data.dataSkills;
       Navigator.pop(context);
       setState(() {
         skillSuggestions.addAll(skills.map((e) => e.toLowerCase()));
@@ -210,17 +254,23 @@ class _AddRequestPageState extends State<AddRequestPage> {
           skills: skills,
         );
 
-        await MongoDb().addRequest(db, request);
-        widget.addRequest(request);
-        var skillSet = skillSuggestions.toSet().toList();
-        await MongoDb().updateSkill(db, skillSet);
+        if (widget.k == null) {
+          await MongoDb().addRequest(db, request, false);
+        } else {
+          await MongoDb().addRequest(db, request, true);
+        }
 
+        widget.addRequest(k: request);
+        await MongoDb().updateSkill(db, skillSuggestions);
+        data.dataSkills = skillSuggestions;
         db.close();
         Navigator.pop(context); // Close loading dialog
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => HomeScreen()),
-        );
+        Navigator.pop(context); // Close request Edit
+
+        // Navigator.pushReplacement(
+        //   context,
+        //   MaterialPageRoute(builder: (context) => HomeScreen()),
+        // );
       } else {
         Navigator.pop(context); // Close loading dialog
         _showErrorDialog("No email found in SharedPreferences.");

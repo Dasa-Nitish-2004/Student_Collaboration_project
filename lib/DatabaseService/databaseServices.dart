@@ -46,6 +46,7 @@ class MongoDb {
   }
 
   Future<void> updateSkill(Db db, List<String> skillSuggestions) async {
+    print("${skillSuggestions.length}");
     var skill = skillSuggestions.toSet();
     skillSuggestions = skill.toList();
     var collection = db.collection('availskill');
@@ -84,9 +85,12 @@ class MongoDb {
     }
   }
 
-  Future<void> addRequest(Db db, Request request) async {
+  Future<void> addRequest(Db db, Request request, bool status) async {
     var collection = db.collection('requests');
-    await collection.insert(request.toMap());
+    if (status) {
+    } else {
+      await collection.insert(request.toMap());
+    }
   }
 
   Future checkUserExists(Db db, String email) async {

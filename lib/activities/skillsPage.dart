@@ -26,16 +26,16 @@ class _SkillPageState extends State<SkillPage> {
   @override
   void initState() {
     super.initState();
+    data.getSkill();
     _initializeSkills();
     _fetchUserData();
   }
 
   void _initializeSkills() async {
     try {
-      var skills = await data.getskills;
+      var skills = data.dataSkills;
       setState(() {
         skillSuggestions.addAll(skills.map((e) => e.toLowerCase()));
-        print(skillSuggestions);
       });
     } catch (error) {
       _showErrorDialog("Failed to load skills. Please try again.");
@@ -195,6 +195,7 @@ class _SkillPageState extends State<SkillPage> {
             user_desc: userDescription,
             skills: skills,
             projects: projects);
+        data.dataSkills = skillSuggestions;
         await MongoDb().updateSkill(db, skillSuggestions);
         db.close();
         Navigator.pop(context); // Close loading dialog

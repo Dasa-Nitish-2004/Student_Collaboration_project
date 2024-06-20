@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:scolab/HomePageScreens/addRequestPage.dart';
+import 'package:scolab/data.dart';
 import 'package:scolab/request_bluePrint.dart';
 
 class RequestsPage extends StatefulWidget {
@@ -9,22 +10,58 @@ class RequestsPage extends StatefulWidget {
 }
 
 class _RequestsPageState extends State<RequestsPage> {
-  List<Request> request = [];
-
-  void addRequest(Request k) {
-    setState(() {
-      print("request added");
-      request.add(k);
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showLoadingDialog();
+      addResponse().then((_) {
+        if (mounted) {
+          Navigator.pop(context);
+          setState(() {});
+        }
+      }).catchError((error) {
+        if (mounted) {
+          Navigator.pop(context);
+          print("Exception caught on addResponse(): $error");
+        }
+      });
     });
   }
 
-  void _addRequest() {
+  void addRequest({Request? k}) {
+    setState(() {
+      req.add(k!);
+    });
+  }
+
+  void _showLoadingDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Center(child: CircularProgressIndicator());
+      },
+    );
+  }
+
+  void deleteRequest({Request? k}) {
+    setState(() {
+      req.remove(k!);
+      deleteResponse(k!);
+    });
+  }
+
+  void _addRequest({Request? k}) {
     showModalBottomSheet(
       useSafeArea: true,
       isScrollControlled: true,
       context: context,
       builder: (ctx) {
-        return AddRequestPage(addRequest);
+        if (k == null) {
+          return AddRequestPage(addRequest);
+        } else {
+          return AddRequestPage(addRequest, k: k);
+        }
       },
     );
   }
@@ -35,17 +72,46 @@ class _RequestsPageState extends State<RequestsPage> {
       shape: ContinuousRectangleBorder(borderRadius: BorderRadius.circular(26)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              req.projectTitle,
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            Expanded(
+              // Wrap the Column with Expanded
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    req.projectTitle,
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 8),
+                  Text(req.projectDesc),
+                  SizedBox(height: 8),
+                  Text(
+                    '${req.skills.map((s) => "${s['skill']} :-> ${s['description']}").join(',\n')}',
+                    softWrap: true, // Ensure the text wraps
+                    overflow: TextOverflow.clip, // Handle overflow
+                  ),
+                ],
+              ),
             ),
-            SizedBox(height: 8),
-            Text(req.projectDesc),
-            SizedBox(height: 8),
-            Text('Skills: ${req.skills.map((s) => s['skill']).join(', ')}'),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  onPressed: () {
+                    _addRequest(k: req);
+                  },
+                  icon: Icon(Icons.edit),
+                ),
+                IconButton(
+                  onPressed: () {
+                    deleteRequest(k: req);
+                  },
+                  icon: Icon(Icons.delete_outline),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -54,19 +120,23 @@ class _RequestsPageState extends State<RequestsPage> {
 
   @override
   Widget build(BuildContext context) {
-    print("build called :___?>${request.length}");
     return Scaffold(
       appBar: AppBar(
         title: Text('Requests'),
         backgroundColor: Colors.deepPurple,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16.0),
-        children: request.map((element) => reqcard(element)).toList(),
+      body: ListView.builder(
+        itemCount: req.length,
+        itemBuilder: (context, index) {
+          return Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: reqcard(req[index]),
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton(
         child: Icon(Icons.add),
-        onPressed: _addRequest,
+        onPressed: () => _addRequest(),
       ),
     );
   }

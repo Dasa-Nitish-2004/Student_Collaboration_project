@@ -68,7 +68,6 @@ class _MyAppState extends State<MyApp> {
     if (email == null || email.isEmpty) {
       loggedin = "";
     } else {
-      print("saved email found: $email");
       if (await MongoDb()
           .checkUserExists(await MongoDb().getConnection(), email)) {
         await prefs.setString('email', "");
@@ -80,7 +79,6 @@ class _MyAppState extends State<MyApp> {
     setState(() {
       status = true;
     }); // Update the UI after checking the login status
-    print("check completed");
   }
 
   @override
@@ -203,7 +201,6 @@ class _signInPageState extends State<signInPage> {
       }
     } catch (error) {
       signOut();
-      print("error : ***${error}***");
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text("Check internet connectivity"),
         duration: Duration(seconds: 3),

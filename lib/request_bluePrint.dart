@@ -2,9 +2,9 @@ class Request {
   final String projectTitle;
   final String projectDesc;
   final String Hostname;
-  final List<String> Participants;
+  final List<dynamic> Participants;
   final String date;
-  final List<Map<String, String>> skills;
+  final List<dynamic> skills;
 
   Request({
     required this.projectTitle,
