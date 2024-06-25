@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:scolab/HomePageScreens/requestsPage.dart';
+import 'package:scolab/SearchPages/SearchResultPage.dart';
+import 'package:scolab/activities/notificationScreen.dart';
 import 'package:scolab/activities/skillsPage.dart';
 import 'package:scolab/data.dart';
 
@@ -15,12 +17,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   static List<Widget> _widgetOptions = <Widget>[
     RequestsPage(),
-    Center(
-      child: Text(
-        'Search Page',
-        style: TextStyle(fontSize: 35, fontWeight: FontWeight.bold),
-      ),
-    ),
+    NotificationScreen(),
     SkillPage(title: "skill info"),
   ];
 
@@ -87,36 +84,13 @@ class _HomeScreenState extends State<HomeScreen> {
         onSelected: (String selection) {
           Navigator.push(context, MaterialPageRoute(
             builder: (context) {
-              return Scaffold(
-                body: Center(
-                  child: Text(selection),
-                ),
-              );
+              return SearchResultPage(selection);
             },
           ));
         },
       ),
     );
   }
-  // Widget _buildSearchBar() {
-  //   return SizedBox(
-  //     height: 40,
-  //     child: TextField(
-  //       decoration: InputDecoration(
-  //         prefixIcon: Icon(Icons.search_rounded),
-  //         contentPadding: EdgeInsets.symmetric(vertical: 5.0, horizontal: 10.0),
-  //         border: OutlineInputBorder(
-  //           borderRadius: BorderRadius.circular(26),
-  //         ),
-  //         alignLabelWithHint: true,
-  //         hintText: "Search",
-  //       ),
-  //       onTap: () {
-  //         // Add search functionality if needed
-  //       },
-  //     ),
-  //   );
-  // }
 
   BottomNavigationBar _buildBottomNavigationBar() {
     return BottomNavigationBar(
@@ -124,17 +98,17 @@ class _HomeScreenState extends State<HomeScreen> {
         BottomNavigationBarItem(
           icon: Icon(Icons.home),
           label: "Home",
-          backgroundColor: Color.fromARGB(255, 149, 117, 205),
+          backgroundColor: Color.fromARGB(255, 243, 141, 116),
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.search),
+          icon: Icon(Icons.notification_add),
           label: 'Search',
-          backgroundColor: Color.fromARGB(255, 121, 80, 190),
+          backgroundColor: Color.fromARGB(255, 243, 141, 80),
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.person),
           label: 'Profile',
-          backgroundColor: Colors.deepPurple,
+          backgroundColor: Color.fromARGB(255, 245, 124, 50),
         ),
       ],
       type: BottomNavigationBarType.shifting,

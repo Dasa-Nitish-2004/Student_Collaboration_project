@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:scolab/DatabaseService/databaseServices.dart';
-import 'package:scolab/DatabaseService/databaseServices.dart';
-import 'package:scolab/activities/HomePage.dart';
 import 'package:scolab/data.dart' as data;
 import 'package:scolab/request_bluePrint.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 
 class AddRequestPage extends StatefulWidget {
@@ -33,16 +30,6 @@ class _AddRequestPageState extends State<AddRequestPage> {
 
   void _fetchUserData() async {
     _showLoadingDialog();
-
-    // var prefs = await SharedPreferences.getInstance();
-    // String? email = prefs.getString("email");
-
-    // if (email == null) {
-    //   Navigator.pop(context); // Close loading dialog
-    //   _showErrorDialog("No email found in SharedPreferences.");
-    //   return;
-    // }
-
     try {
       // var userRequest = await data.getRequest(email, widget.k!.projectTitle);
       setState(() {
@@ -168,7 +155,8 @@ class _AddRequestPageState extends State<AddRequestPage> {
                 hintText: "Skill",
                 helperText: "Click plus for new skill",
                 prefixIcon: Icon(Icons.text_snippet_rounded,
-                    color: Colors.deepPurple, size: 24),
+                    color: Theme.of(context).colorScheme.inversePrimary,
+                    size: 24),
                 suffixIcon: Row(
                   mainAxisSize: MainAxisSize
                       .min, // Added to ensure Row takes minimum width
@@ -240,8 +228,7 @@ class _AddRequestPageState extends State<AddRequestPage> {
   ) async {
     _showLoadingDialog();
     try {
-      var prefs = await SharedPreferences.getInstance();
-      var email = prefs.getString("email");
+      var email = data.hostemail;
 
       if (email != null) {
         var db = await MongoDb().getConnection();
@@ -255,12 +242,24 @@ class _AddRequestPageState extends State<AddRequestPage> {
         );
 
         if (widget.k == null) {
-          await MongoDb().addRequest(db, request, false);
+          await MongoDb().addRequest(
+              db,
+              request,
+              Request(
+                  projectTitle: "",
+                  projectDesc: "",
+                  Hostname: "",
+                  Participants: [],
+                  date: "",
+                  skills: []),
+              false);
+          widget.addRequest(k: request);
         } else {
-          await MongoDb().addRequest(db, request, true);
+          await MongoDb().addRequest(db, request, widget.k!, true);
+          data.req.remove(widget.k);
+          widget.addRequest(k: request);
         }
 
-        widget.addRequest(k: request);
         await MongoDb().updateSkill(db, skillSuggestions);
         data.dataSkills = skillSuggestions;
         db.close();
@@ -300,7 +299,7 @@ class _AddRequestPageState extends State<AddRequestPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Add Request'),
-        backgroundColor: Colors.deepPurple,
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -320,7 +319,8 @@ class _AddRequestPageState extends State<AddRequestPage> {
                   hintText: "Project Title",
                   helperText: "Enter Project Title",
                   prefixIcon: Icon(Icons.assignment,
-                      color: Colors.deepPurple, size: 24),
+                      color: Theme.of(context).colorScheme.inversePrimary,
+                      size: 24),
                 ),
               ),
               SizedBox(
@@ -336,8 +336,9 @@ class _AddRequestPageState extends State<AddRequestPage> {
                   ),
                   hintText: "Project Description",
                   helperText: "Enter Project Explaination",
-                  prefixIcon:
-                      Icon(Icons.article, color: Colors.deepPurple, size: 24),
+                  prefixIcon: Icon(Icons.article,
+                      color: Theme.of(context).colorScheme.inversePrimary,
+                      size: 24),
                 ),
               ),
               SizedBox(

@@ -1,9 +1,20 @@
 import 'dart:async';
+import 'dart:ffi';
 
 import 'package:mongo_dart/mongo_dart.dart';
 import 'package:scolab/DatabaseService/databaseServices.dart';
 import 'package:scolab/request_bluePrint.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+String hostemail = "";
+List<String> dataSkills = [];
+List<Request> req = [];
+
+String user_desc = "";
+String github = "";
+String linkedIn = "";
+List<Map<String, dynamic>> skills = [];
+List<Map<String, dynamic>> projects = [];
 
 Future<List> get getskills async {
   Db db = await MongoDb().getConnection();
@@ -13,7 +24,6 @@ Future<List> get getskills async {
   k.forEach((element) {
     skill = element['skills'];
   });
-  // print(skill);
   db.close();
   return skill;
 }
@@ -48,7 +58,6 @@ Future<void> addResponse() async {
   var k = await info.find(where.eq("Hostname", email)).toList();
 
   for (var element in k) {
-    print(element);
     try {
       req.add(Request(
         projectTitle: element['projectTitle'],
@@ -59,10 +68,10 @@ Future<void> addResponse() async {
         skills: element['skills'],
       ));
     } catch (e) {
-      print("this is the error ${e}");
+      // print("this is the error ${e}");
     }
   }
-  print("request in data file ______ ${req.length}");
+  // print("request in data file ______ ${req.length}");
 
   await db.close();
 }
@@ -80,12 +89,9 @@ Future<void> deleteResponse(Request k) async {
   await db.close();
 }
 
-List<Request> req = [];
 void addRequest(Request k) {
   req.add(k);
 }
-
-List<String> dataSkills = [];
 
 Future<void> getSkill() async {
   if (dataSkills.length == 0) {

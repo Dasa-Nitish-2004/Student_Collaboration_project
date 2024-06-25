@@ -23,7 +23,6 @@ class _RequestsPageState extends State<RequestsPage> {
       }).catchError((error) {
         if (mounted) {
           Navigator.pop(context);
-          print("Exception caught on addResponse(): $error");
         }
       });
     });
@@ -85,12 +84,16 @@ class _RequestsPageState extends State<RequestsPage> {
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   SizedBox(height: 8),
-                  Text(req.projectDesc),
+                  Text(
+                    req.projectDesc,
+                    style: TextStyle(fontSize: 17),
+                  ),
                   SizedBox(height: 8),
                   Text(
                     '${req.skills.map((s) => "${s['skill']} :-> ${s['description']}").join(',\n')}',
-                    softWrap: true, // Ensure the text wraps
-                    overflow: TextOverflow.clip, // Handle overflow
+                    softWrap: true,
+                    overflow: TextOverflow.clip,
+                    style: TextStyle(fontSize: 15),
                   ),
                 ],
               ),
@@ -123,7 +126,7 @@ class _RequestsPageState extends State<RequestsPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Requests'),
-        backgroundColor: Colors.deepPurple,
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: ListView.builder(
         itemCount: req.length,

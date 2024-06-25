@@ -2,16 +2,27 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/adapters.dart';
 import 'package:scolab/DatabaseService/databaseServices.dart';
 import 'package:scolab/activities/HomePage.dart';
+// import 'package:scolab/activities/notificationScreen.dart';
 import 'package:scolab/activities/skillsPage.dart';
 import 'package:mongo_dart/mongo_dart.dart' as mongo;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:scolab/data.dart' as dataFile;
 import 'package:internet_connection_checker_plus/internet_connection_checker_plus.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(MyApp());
+  await Hive.initFlutter();
+  await Hive.openBox('liked_users');
+  await Hive.openBox('Requested_Requests');
+  await Hive.openBox('Recived_Requests');
+
+  runApp(const MyApp());
+
+  // runApp(MaterialApp(home: NotificationScreen()));
 }
 
 class MyApp extends StatefulWidget {
@@ -74,6 +85,7 @@ class _MyAppState extends State<MyApp> {
         loggedin = "";
       } else {
         loggedin = email;
+        dataFile.hostemail = email;
       }
     }
     setState(() {
@@ -86,16 +98,16 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.black),
         useMaterial3: true,
       ),
       home: isConnected
           ? status
               ? (loggedin.isEmpty ? signInPage() : HomeScreen())
-              : Center(
+              : const Center(
                   child: CircularProgressIndicator(),
                 )
-          : Center(
+          : const Center(
               child: Scaffold(
                 body: Center(
                   child: Text("Internet not Connected"),
@@ -107,7 +119,7 @@ class _MyAppState extends State<MyApp> {
 }
 
 class signInPage extends StatefulWidget {
-  signInPage({super.key});
+  const signInPage({super.key});
 
   @override
   State<signInPage> createState() => _signInPageState();
@@ -151,7 +163,7 @@ class _signInPageState extends State<signInPage> {
         ),
       );
       signOut();
-      print(error);
+      // print(error);
     } finally {
       setState(() {});
     }
@@ -174,6 +186,7 @@ class _signInPageState extends State<signInPage> {
           .checkUserExists(await MongoDb().getConnection(), email)) {
         var prefs = await SharedPreferences.getInstance();
         await prefs.setString('email', email);
+        dataFile.hostemail = email;
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -222,16 +235,8 @@ class _signInPageState extends State<signInPage> {
     super.initState();
   }
 
-  var sharedPref = "";
-
-  void lode() async {
-    var pref = await SharedPreferences.getInstance();
-    sharedPref = pref.getString("email")!;
-  }
-
   @override
   Widget build(BuildContext context) {
-    lode();
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
@@ -252,12 +257,8 @@ class _signInPageState extends State<signInPage> {
                       login_space = signInEmail();
                     });
                   },
-                  style: const ButtonStyle(
-                      backgroundColor: MaterialStatePropertyAll(
-                          Color.fromARGB(255, 222, 204, 254))),
                   child: Text(
                     "Sign In",
-                    style: TextStyle(color: Colors.black),
                   )),
               SizedBox(
                 width: 20,
@@ -268,12 +269,8 @@ class _signInPageState extends State<signInPage> {
                       login_space = registerEmail();
                     });
                   },
-                  style: const ButtonStyle(
-                      backgroundColor: MaterialStatePropertyAll(
-                          Color.fromARGB(255, 222, 204, 254))),
                   child: Text(
                     "Register",
-                    style: TextStyle(color: Colors.black),
                   )),
             ],
           ),
@@ -293,7 +290,7 @@ class _signInPageState extends State<signInPage> {
       decoration: BoxDecoration(
         border: Border.all(
           width: 2,
-          color: Colors.deepPurple,
+          color: Theme.of(context).colorScheme.inversePrimary,
         ),
         borderRadius: BorderRadius.circular(26),
       ),
@@ -321,7 +318,7 @@ class _signInPageState extends State<signInPage> {
       decoration: BoxDecoration(
         border: Border.all(
           width: 2,
-          color: Colors.deepPurple,
+          color: Theme.of(context).colorScheme.inversePrimary,
         ),
         borderRadius: BorderRadius.circular(26),
       ),

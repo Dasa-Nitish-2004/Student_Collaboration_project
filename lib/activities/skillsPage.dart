@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:scolab/DatabaseService/databaseServices.dart';
 import 'package:scolab/activities/HomePage.dart';
-import 'package:scolab/data.dart' as data;
-import 'package:list_utilities/list_utilities.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:scolab/data.dart' as dataFile;
 
 class SkillPage extends StatefulWidget {
   const SkillPage({Key? key, required this.title}) : super(key: key);
@@ -26,14 +24,14 @@ class _SkillPageState extends State<SkillPage> {
   @override
   void initState() {
     super.initState();
-    data.getSkill();
     _initializeSkills();
     _fetchUserData();
   }
 
   void _initializeSkills() async {
     try {
-      var skills = data.dataSkills;
+      await dataFile.getSkill();
+      var skills = dataFile.dataSkills;
       setState(() {
         skillSuggestions.addAll(skills.map((e) => e.toLowerCase()));
       });
@@ -44,37 +42,50 @@ class _SkillPageState extends State<SkillPage> {
 
   void _fetchUserData() async {
     _showLoadingDialog();
-    var prefs = await SharedPreferences.getInstance();
-    String? email = prefs.getString("email");
 
-    if (email == null) {
-      Navigator.pop(context); // Close loading dialog
-      _showErrorDialog("No email found in SharedPreferences.");
-      return;
-    }
-
-    try {
-      var userData = await data.getUserData(email);
-      setState(() {
-        userInfo = userData;
-        _populateUserData(userData);
-      });
-      Navigator.pop(context); // Close loading dialog
-    } catch (error) {
-      Navigator.pop(context); // Close loading dialog
-      _showErrorDialog("Error fetching user data: $error");
+    if (dataFile.user_desc.isNotEmpty) {
+      userDescriptionController.text = dataFile.user_desc;
+      gitHubController.text = dataFile.github;
+      linkedInController.text = dataFile.linkedIn;
+      for (var skill in dataFile.skills) {
+        _addSkill(skill);
+      }
+      for (var project in dataFile.projects) {
+        _addProject(project);
+      }
+      Navigator.pop(context);
+    } else {
+      try {
+        var userData = await dataFile.getUserData(dataFile.hostemail);
+        setState(() {
+          userInfo = userData;
+          _populateUserData(userData);
+        });
+        if (context.mounted) {
+          Navigator.pop(context);
+        }
+      } catch (error) {
+        if (context.mounted) Navigator.pop(context);
+        _showErrorDialog("Error fetching user data: $error");
+      }
     }
   }
 
   void _populateUserData(Map userData) {
     userDescriptionController.text = userData['user_description'] ?? '';
-    gitHubController.text = userData['github'] ?? '';
-    linkedInController.text = userData['linkedin'] ?? '';
+    dataFile.user_desc = userDescriptionController.text;
 
+    gitHubController.text = userData['github'] ?? '';
+    dataFile.github = gitHubController.text;
+
+    linkedInController.text = userData['linkedin'] ?? '';
+    dataFile.linkedIn = linkedInController.text;
     for (var skill in userData['skill'] ?? []) {
+      dataFile.skills.add(skill);
       _addSkill(skill);
     }
     for (var project in userData['projects'] ?? []) {
+      dataFile.projects.add(project);
       _addProject(project);
     }
   }
@@ -184,10 +195,15 @@ class _SkillPageState extends State<SkillPage> {
       List<Map<String, String>> projects) async {
     _showLoadingDialog();
     try {
-      var prefs = await SharedPreferences.getInstance();
-      var email = prefs.getString("email");
+      var email = dataFile.hostemail;
 
-      if (email != null) {
+      if (email != "") {
+        dataFile.user_desc = userDescription;
+        dataFile.github = gitHub;
+        dataFile.linkedIn = linkedIn;
+        dataFile.skills = skills;
+        dataFile.projects = projects;
+
         var db = await MongoDb().getConnection();
         await MongoDb().modifyUser(db, email,
             github: gitHub,
@@ -195,18 +211,18 @@ class _SkillPageState extends State<SkillPage> {
             user_desc: userDescription,
             skills: skills,
             projects: projects);
-        data.dataSkills = skillSuggestions;
+        dataFile.dataSkills = skillSuggestions;
         await MongoDb().updateSkill(db, skillSuggestions);
         db.close();
-        Navigator.pop(context); // Close loading dialog
+        Navigator.pop(context);
         Navigator.pushReplacement(
             context, MaterialPageRoute(builder: (context) => HomeScreen()));
       } else {
-        Navigator.pop(context); // Close loading dialog
+        Navigator.pop(context);
         _showErrorDialog("No email found in SharedPreferences.");
       }
     } catch (error) {
-      Navigator.pop(context); // Close loading dialog
+      Navigator.pop(context);
       _showErrorDialog("Error submitting data. Please try again.");
     }
   }
@@ -245,15 +261,6 @@ class _SkillPageState extends State<SkillPage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
         leading: Icon(Icons.article),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.arrow_right_alt_rounded),
-            onPressed: () {
-              Navigator.pushReplacement(context,
-                  MaterialPageRoute(builder: (context) => HomeScreen()));
-            },
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(16),
@@ -314,7 +321,8 @@ class _SkillPageState extends State<SkillPage> {
         ),
         hintText: hintText,
         helperText: helperText,
-        prefixIcon: Icon(icon, color: Colors.deepPurple, size: 24),
+        prefixIcon: Icon(icon,
+            color: Theme.of(context).colorScheme.inversePrimary, size: 24),
       ),
     );
   }
@@ -324,73 +332,11 @@ class _SkillPageState extends State<SkillPage> {
       "$title...",
       textAlign: TextAlign.left,
       style: TextStyle(
-        color: Colors.deepPurple,
+        color: Theme.of(context).colorScheme.inversePrimary,
         fontWeight: FontWeight.bold,
       ),
     );
   }
-
-  // Widget _buildSkillEntry(int index, Map<String, TextEditingController> skill) {
-  //   return Column(
-  //     children: [
-  //       Autocomplete<String>(
-  //         optionsBuilder: (TextEditingValue textEditingValue) {
-  //           if (textEditingValue.text.isEmpty) {
-  //             return const Iterable<String>.empty();
-  //           }
-  //           return skillSuggestions.where((String option) {
-  //             return option
-  //                 .toLowerCase()
-  //                 .contains(textEditingValue.text.toLowerCase());
-  //           });
-  //         },
-  //         fieldViewBuilder: (BuildContext context,
-  //             TextEditingController textEditingController,
-  //             FocusNode focusNode,
-  //             VoidCallback onFieldSubmitted) {
-  //           textEditingController.text = skill['skill']!.text;
-  //           return TextField(
-  //             onChanged: (value) {
-  //               skill['skill']!.text = value;
-  //             },
-  //             controller: textEditingController,
-  //             focusNode: focusNode,
-  //             decoration: InputDecoration(
-  //                 border: OutlineInputBorder(
-  //                   borderRadius: BorderRadius.circular(22),
-  //                 ),
-  //                 hintText: "Skill",
-  //                 helperText: "Click plus for new skill",
-  //                 prefixIcon: Icon(Icons.text_snippet_rounded,
-  //                     color: Colors.deepPurple, size: 24),
-  //                 suffixIcon: IconButton(
-  //                   icon: Icon(Icons.delete, color: Colors.red),
-  //                   onPressed: () => _removeSkill(index),
-  //                 ),
-  //                 suffix: IconButton(onPressed: () {}, icon: Icon(Icons.add))),
-  //           );
-  //         },
-  //         onSelected: (String selection) {
-  //           skill['skill']!.text = selection;
-  //         },
-  //       ),
-  //       SizedBox(height: 10),
-  //       TextField(
-  //         controller: skill['description'],
-  //         maxLines: 5,
-  //         maxLength: 500,
-  //         minLines: 1,
-  //         decoration: InputDecoration(
-  //           border: OutlineInputBorder(
-  //             borderRadius: BorderRadius.circular(22),
-  //           ),
-  //           hintText: "Skill Description",
-  //         ),
-  //       ),
-  //       SizedBox(height: 20),
-  //     ],
-  //   );
-  // }
 
   Widget _buildSkillEntry(int index, Map<String, TextEditingController> skill) {
     return Column(
@@ -421,10 +367,10 @@ class _SkillPageState extends State<SkillPage> {
                 hintText: "Skill",
                 helperText: "Click plus for new skill",
                 prefixIcon: Icon(Icons.text_snippet_rounded,
-                    color: Colors.deepPurple, size: 24),
+                    color: Theme.of(context).colorScheme.inversePrimary,
+                    size: 24),
                 suffixIcon: Row(
-                  mainAxisSize: MainAxisSize
-                      .min, // Added to ensure Row takes minimum width
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
                       icon: Icon(Icons.add, color: Colors.black),
@@ -482,7 +428,8 @@ class _SkillPageState extends State<SkillPage> {
               borderRadius: BorderRadius.circular(22),
             ),
             hintText: "Project",
-            prefixIcon: Icon(Icons.work, color: Colors.deepPurple, size: 24),
+            prefixIcon: Icon(Icons.work,
+                color: Theme.of(context).colorScheme.inversePrimary, size: 24),
             suffixIcon: IconButton(
               icon: Icon(Icons.delete, color: Colors.red),
               onPressed: () => _removeProject(index),
