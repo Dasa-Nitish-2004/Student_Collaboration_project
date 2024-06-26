@@ -64,13 +64,29 @@ class HiveService {
     }
   }
 
-  static List<Map> getRequestedRequests() {
-    print("****************getRequestedRequests called*******************");
+  static Future<void> deleteRequestedRequests(Map notification) async {
     var requestedRequests = List<Map<dynamic, dynamic>>.from(
         requestedRequestsBox.get('Requested_Requests',
             defaultValue: <Map<dynamic, dynamic>>[]));
-    print(requestedRequests);
-    return requestedRequests;
+
+    requestedRequests.remove(notification);
+    requestedRequestsBox.put("Requested_Requests", requestedRequests);
+
+    MongoDb.deleteRequest(notification);
+  }
+
+  static Future<void> deleteRecivedRequest(
+      Map notification, bool isConnected) async {
+    var recivedRequests = List<Map<dynamic, dynamic>>.from(receivedRequestsBox
+        .get('Recived_Requests', defaultValue: <Map<dynamic, dynamic>>[]));
+
+    recivedRequests.remove(notification);
+    receivedRequestsBox.put("Recived_Requests", recivedRequests);
+
+    if (isConnected) {
+    } else {
+      MongoDb.deleteRequest(notification);
+    }
   }
 
   static void addRequestedRequest(Map<dynamic, dynamic> entry) {
@@ -89,6 +105,15 @@ class HiveService {
         .get('Recived_Requests', defaultValue: <Map<dynamic, dynamic>>[]));
     print(receivedRequests);
     return receivedRequests;
+  }
+
+  static List<Map> getRequestedRequests() {
+    print("****************getRequestedRequests called*******************");
+    var requestedRequests = List<Map<dynamic, dynamic>>.from(
+        requestedRequestsBox.get('Requested_Requests',
+            defaultValue: <Map<dynamic, dynamic>>[]));
+    print(requestedRequests);
+    return requestedRequests;
   }
 
   static void addReceivedRequest(Map<dynamic, dynamic> entry) {

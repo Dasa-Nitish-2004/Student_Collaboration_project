@@ -40,12 +40,11 @@ class MongoDb {
   }
 
   static Future<List<Map<dynamic, dynamic>>> updateLocalRequested() async {
-    String mail = 'dasanitish2004@gmail.com';
     print("database called");
     var db = await MongoDb().getConnection();
     var requestedData = await db
         .collection("requestMessage")
-        .find(where.eq("sender", mail))
+        .find(where.eq("sender", data.hostemail))
         .toList();
     print(requestedData);
     db.close();
@@ -84,6 +83,20 @@ class MongoDb {
     }
     return true;
     //true if exists else false
+  }
+
+  static Future<void> deleteRequest(Map request) async {
+    var db = await MongoDb().getConnection();
+    try {
+      db.collection("requestMessage").deleteMany({
+        "sender": request["sender"],
+        "project": request["project"],
+        "reciver": request["reciver"]
+      });
+    } catch (e) {
+      print("unable to delete");
+    }
+    db.close();
   }
 
   Future<void> modifyUser(Db db, String email,

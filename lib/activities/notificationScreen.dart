@@ -115,7 +115,13 @@ class _RequestedState extends State<Requested> {
                           ),
                         ],
                       ),
-                      IconButton(onPressed: () {}, icon: Icon(Icons.delete)),
+                      IconButton(
+                          onPressed: () async {
+                            await HiveService.deleteRequestedRequests(
+                                requested_nof[index]);
+                            setState(() {});
+                          },
+                          icon: Icon(Icons.delete)),
                     ],
                   ),
                 ),
@@ -235,11 +241,23 @@ class _RecivedNotification extends State<RecivedNotification> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
-                              onPressed: () {},
+                              onPressed: () async {
+                                await HiveService.deleteRecivedRequest(
+                                    recived_nof[index], true);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                        content:
+                                            Text("connected succesfully!")));
+                                setState(() {});
+                              },
                               icon: Icon(Icons.check),
                             ),
                             IconButton(
-                              onPressed: () {},
+                              onPressed: () async {
+                                await HiveService.deleteRecivedRequest(
+                                    recived_nof[index], false);
+                                setState(() {});
+                              },
                               icon: Icon(Icons.close),
                             ),
                           ],
