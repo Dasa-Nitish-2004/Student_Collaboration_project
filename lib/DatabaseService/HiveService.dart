@@ -5,6 +5,7 @@ class HiveService {
   static Box get likedUsersBox => Hive.box('liked_users');
   static Box get requestedRequestsBox => Hive.box('Requested_Requests');
   static Box get receivedRequestsBox => Hive.box('Recived_Requests');
+  static Box get my_ProjectBox => Hive.box('My_Projects');
 
   static void removeLikedUser(String userId) {
     var likedUsers = List<String>.from(
@@ -38,10 +39,8 @@ class HiveService {
     try {
       List<Map<dynamic, dynamic>> req = await MongoDb.updateLocalRequested();
 
-      print(req.length);
       for (var element in req) {
         element["_id"] = "";
-        print(element);
       }
       requestedRequestsBox.put('Requested_Requests', req);
     } catch (e) {
@@ -53,10 +52,8 @@ class HiveService {
     try {
       List<Map<dynamic, dynamic>> req = await MongoDb.updateLocalRecevied();
 
-      print(req.length);
       for (var element in req) {
         element["_id"] = "";
-        print(element);
       }
       receivedRequestsBox.put('Recived_Requests', req);
     } catch (e) {
@@ -84,23 +81,20 @@ class HiveService {
     receivedRequestsBox.put("Recived_Requests", recivedRequests);
 
     if (isConnected) {
-    } else {
-      MongoDb.deleteRequest(notification);
+      MongoDb.addParticipant(notification);
     }
+    MongoDb.deleteRequest(notification);
   }
 
   static void addRequestedRequest(Map<dynamic, dynamic> entry) {
-    print("****************addRequestedRequest called*******************");
     var requestedRequests = List<Map<dynamic, dynamic>>.from(
         requestedRequestsBox.get('Requested_Requests',
             defaultValue: <Map<dynamic, dynamic>>[]));
     requestedRequests.add(entry);
-    print(requestedRequests);
     requestedRequestsBox.put('Requested_Requests', requestedRequests);
   }
 
   static List<Map<dynamic, dynamic>> getReceivedRequests() {
-    print("****************getReceivedRequests called*******************");
     var receivedRequests = List<Map<dynamic, dynamic>>.from(receivedRequestsBox
         .get('Recived_Requests', defaultValue: <Map<dynamic, dynamic>>[]));
     print(receivedRequests);
@@ -108,20 +102,16 @@ class HiveService {
   }
 
   static List<Map> getRequestedRequests() {
-    print("****************getRequestedRequests called*******************");
     var requestedRequests = List<Map<dynamic, dynamic>>.from(
         requestedRequestsBox.get('Requested_Requests',
             defaultValue: <Map<dynamic, dynamic>>[]));
-    print(requestedRequests);
     return requestedRequests;
   }
 
   static void addReceivedRequest(Map<dynamic, dynamic> entry) {
-    print("****************addReceivedRequest called*******************");
     var receivedRequests = List<Map<dynamic, dynamic>>.from(receivedRequestsBox
         .get('Recived_Requests', defaultValue: <Map<dynamic, dynamic>>[]));
     receivedRequests.add(entry);
-    print(receivedRequests);
     receivedRequestsBox.put('Recived_Requests', receivedRequests);
   }
 }

@@ -13,27 +13,13 @@ class _RequestsPageState extends State<RequestsPage> {
   @override
   void initState() {
     super.initState();
+    // _loadRequests();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _showLoadingDialog();
-      addResponse().then((_) {
-        if (mounted) {
-          Navigator.pop(context);
-          setState(() {});
-        }
-      }).catchError((error) {
-        if (mounted) {
-          Navigator.pop(context);
-        }
-      });
+      _loadRequests();
     });
   }
 
-  void addRequest({Request? k}) {
-    setState(() {
-      req.add(k!);
-    });
-  }
-
+  // Show loading dialog
   void _showLoadingDialog() {
     showDialog(
       context: context,
@@ -43,6 +29,50 @@ class _RequestsPageState extends State<RequestsPage> {
     );
   }
 
+  // Load requests from the server
+  Future<void> _loadRequests() async {
+    _showLoadingDialog();
+    try {
+      await addResponse();
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        setState(() {});
+      }
+    } catch (error) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        _showErrorDialog("Error loading requests: $error");
+      }
+    }
+  }
+
+  // Show error dialog
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Error'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+            },
+            child: const Text('Okay'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Add a new request
+  void addRequest({Request? k}) {
+    setState(() {
+      req.add(k!);
+    });
+  }
+
+  // Delete a request
   void deleteRequest({Request? k}) {
     setState(() {
       req.remove(k!);
@@ -50,22 +80,20 @@ class _RequestsPageState extends State<RequestsPage> {
     });
   }
 
-  void _addRequest({Request? k}) {
+  // Open the AddRequestPage for adding or editing a request
+  void _openAddRequestPage({Request? k}) {
     showModalBottomSheet(
       useSafeArea: true,
       isScrollControlled: true,
       context: context,
       builder: (ctx) {
-        if (k == null) {
-          return AddRequestPage(addRequest);
-        } else {
-          return AddRequestPage(addRequest, k: k);
-        }
+        return AddRequestPage(addRequest, k: k);
       },
     );
   }
 
-  Widget reqcard(Request req) {
+  // Build a request card
+  Widget _buildRequestCard(Request req) {
     return Card(
       elevation: 4,
       shape: ContinuousRectangleBorder(borderRadius: BorderRadius.circular(26)),
@@ -90,7 +118,9 @@ class _RequestsPageState extends State<RequestsPage> {
                   ),
                   SizedBox(height: 8),
                   Text(
-                    '${req.skills.map((s) => "${s['skill']} :-> ${s['description']}").join(',\n')}',
+                    req.skills
+                        .map((s) => "${s['skill']} :-> ${s['description']}")
+                        .join(',\n'),
                     softWrap: true,
                     overflow: TextOverflow.clip,
                     style: TextStyle(fontSize: 15),
@@ -103,7 +133,7 @@ class _RequestsPageState extends State<RequestsPage> {
               children: [
                 IconButton(
                   onPressed: () {
-                    _addRequest(k: req);
+                    _openAddRequestPage(k: req);
                   },
                   icon: Icon(Icons.edit),
                 ),
@@ -133,13 +163,13 @@ class _RequestsPageState extends State<RequestsPage> {
         itemBuilder: (context, index) {
           return Padding(
             padding: const EdgeInsets.all(16.0),
-            child: reqcard(req[index]),
+            child: _buildRequestCard(req[index]),
           );
         },
       ),
       floatingActionButton: FloatingActionButton(
         child: Icon(Icons.add),
-        onPressed: () => _addRequest(),
+        onPressed: () => _openAddRequestPage(),
       ),
     );
   }

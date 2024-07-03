@@ -208,7 +208,7 @@ class _SkillPageState extends State<SkillPage> {
         await MongoDb().modifyUser(db, email,
             github: gitHub,
             linkedin: linkedIn,
-            user_desc: userDescription,
+            userDesc: userDescription,
             skills: skills,
             projects: projects);
         dataFile.dataSkills = skillSuggestions;

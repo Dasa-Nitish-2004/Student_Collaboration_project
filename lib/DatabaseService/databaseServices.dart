@@ -5,23 +5,30 @@ import 'package:scolab/data.dart' as data;
 import 'package:scolab/DatabaseService/HiveService.dart';
 
 class MongoDb {
+  // Establishes a connection to the MongoDB database.
   Future<Db> getConnection() async {
-    String pass = "dasa6302081627";
-    var db = await Db.create(
+    const String pass = "dasa6302081627";
+    final db = await Db.create(
         "mongodb+srv://dasanitish2004:$pass@userdata.marephd.mongodb.net/sample_mflix?retryWrites=true&w=majority&appName=UserData");
     await db.open();
     return db;
   }
 
-  static Future<void> sendConnectRequest(
-      {required String mssg,
-      required Map reciver,
-      required String project,
-      required String sender}) async {
+  // Sends a connection request to a receiver if the message doesn't already exist.
+  static Future<void> sendConnectRequest({
+    required String mssg,
+    required Map reciver,
+    required String project,
+    required String sender,
+  }) async {
     if (!await MongoDb.checkRequestMessg(
-        mssg: mssg, project: project, reciver: reciver, sender: sender)) {
-      Db db = await MongoDb().getConnection();
-      db.collection("requestMessage").insert({
+      mssg: mssg,
+      project: project,
+      reciver: reciver,
+      sender: sender,
+    )) {
+      final db = await MongoDb().getConnection();
+      await db.collection("requestMessage").insert({
         "sender": sender,
         "reciver": reciver['id'],
         "project": project,
@@ -35,80 +42,112 @@ class MongoDb {
         "date": DateTime.now(),
         "message": mssg
       });
-      db.close();
+      await db.close();
     }
   }
 
-  static Future<List<Map<dynamic, dynamic>>> updateLocalRequested() async {
-    print("database called");
+  static Future<void> addParticipant(Map notif) async {
     var db = await MongoDb().getConnection();
-    var requestedData = await db
+    var collection = db.collection('participants');
+    // Helper function to add or update the document for a user
+    Future<void> addOrUpdateUser(
+        String userId, String otherUser, String projectTitle) async {
+      var userDoc = await collection.findOne(where.eq("id", userId));
+
+      if (userDoc != null) {
+        await collection.update(
+            where.eq('id', userId),
+            modify.push('projects',
+                {'hostName': otherUser, 'projectTitle': projectTitle}));
+        print('Project added successfully for $userId.');
+      } else {
+        await collection.insert({
+          "id": userId,
+          "projects": [
+            {'hostName': otherUser, 'projectTitle': projectTitle}
+          ]
+        });
+        print('New document created and project added for $userId.');
+      }
+    }
+
+    // Add or update documents for both sender and receiver
+    await addOrUpdateUser(notif["sender"], notif["reciver"], notif["project"]);
+    await addOrUpdateUser(notif["reciver"], notif["reciver"], notif["project"]);
+    db.close();
+  }
+
+  // Updates the locally stored requested data.
+  static Future<List<Map<dynamic, dynamic>>> updateLocalRequested() async {
+    final db = await MongoDb().getConnection();
+    final requestedData = await db
         .collection("requestMessage")
         .find(where.eq("sender", data.hostemail))
         .toList();
-    print(requestedData);
-    db.close();
+    await db.close();
     return requestedData;
   }
 
+  // Updates the locally stored received data.
   static Future<List<Map<dynamic, dynamic>>> updateLocalRecevied() async {
-    String mail = 'dasanitish2004@gmail.com';
-    print("database called");
-    var db = await MongoDb().getConnection();
-    var requestedData = await db
+    final db = await MongoDb().getConnection();
+    final requestedData = await db
         .collection("requestMessage")
-        .find(where.eq("reciver", mail))
+        .find(where.eq("reciver", data.hostemail))
         .toList();
-    print(requestedData);
-    db.close();
+    await db.close();
     return requestedData;
   }
 
-  static Future<bool> checkRequestMessg(
-      {required String mssg,
-      required String project,
-      required Map reciver,
-      required String sender}) async {
-    Db db = await MongoDb().getConnection();
-    var result = await db
+  // Checks if a request message already exists.
+  static Future<bool> checkRequestMessg({
+    required String mssg,
+    required String project,
+    required Map reciver,
+    required String sender,
+  }) async {
+    final db = await MongoDb().getConnection();
+    final result = await db
         .collection("requestMessage")
         .find(where
             .eq("sender", sender)
             .eq("reciver", reciver["id"])
             .eq("project", project))
         .toList();
-    db.close();
-    if (result.isEmpty) {
-      return false;
-    }
-    return true;
-    //true if exists else false
+    await db.close();
+    return result.isNotEmpty;
   }
 
+  // Deletes a request from the database.
   static Future<void> deleteRequest(Map request) async {
-    var db = await MongoDb().getConnection();
+    final db = await MongoDb().getConnection();
     try {
-      db.collection("requestMessage").deleteMany({
+      await db.collection("requestMessage").deleteMany({
         "sender": request["sender"],
         "project": request["project"],
         "reciver": request["reciver"]
       });
     } catch (e) {
-      print("unable to delete");
+      print("Unable to delete request: $e");
+    } finally {
+      await db.close();
     }
-    db.close();
   }
 
-  Future<void> modifyUser(Db db, String email,
-      {String? user_desc,
-      String? github,
-      String? linkedin,
-      List? skills,
-      List? projects}) async {
+  // Modifies user information in the database.
+  Future<void> modifyUser(
+    Db db,
+    String email, {
+    String? userDesc,
+    String? github,
+    String? linkedin,
+    List? skills,
+    List? projects,
+  }) async {
     var modifier = modify;
 
-    if (user_desc != null) {
-      modifier = modifier.set('user_description', user_desc);
+    if (userDesc != null) {
+      modifier = modifier.set('user_description', userDesc);
     }
     if (github != null) {
       modifier = modifier.set('github', github);
@@ -123,7 +162,6 @@ class MongoDb {
       modifier = modifier.set('projects', projects);
     }
 
-    // Perform the update
     if (modifier.map.isNotEmpty) {
       await db.collection("user_info").updateOne(
             where.eq('id', email),
@@ -132,34 +170,31 @@ class MongoDb {
     }
   }
 
+  // Updates skill suggestions in the database.
   Future<void> updateSkill(Db db, List<String> skillSuggestions) async {
-    var skill = skillSuggestions.toSet();
-    skillSuggestions = skill.toList();
-    var collection = db.collection('availskill');
-    await collection.updateOne(
-      where.eq('type', 'skill'),
-      modify.set('skills', skillSuggestions),
-      upsert: true, // This will insert the skill if it doesn't exist
-    );
+    skillSuggestions = skillSuggestions.toSet().toList();
+    await db.collection('availskill').updateOne(
+          where.eq('type', 'skill'),
+          modify.set('skills', skillSuggestions),
+          upsert: true,
+        );
   }
 
+  // Fetches a list of user IDs from the database.
   Future<List> getIds(Db db) async {
-    List obj;
-    List data = [];
-    var movies = await db.collection("user_info");
-    obj = (await movies.find(where.sortBy('id').fields(['id'])).toList());
-    obj.forEach(
-      (ele) {
-        data.add(ele['id']);
-      },
-    );
-    return data;
+    final obj = await db
+        .collection("user_info")
+        .find(where.sortBy('id').fields(['id']))
+        .toList();
+    return obj.map((ele) => ele['id']).toList();
   }
 
-  void addUser(Db db, String mail) async {
-    var user = await db.collection("user_info");
+  // Adds a new user to the database.
+  Future<void> addUser(Db db, String mail) async {
+    print("successfull entered");
     if (await checkUserExists(db, mail)) {
-      await user.insert({
+      print("successfull checked");
+      await db.collection("user_info").insert({
         "id": mail,
         "type": "user",
         "skill": [],
@@ -169,16 +204,17 @@ class MongoDb {
         'likes': 0,
         'user_description': '',
       });
-
+      print("successfull inserted");
       await db.collection("favorites").insert({"id": mail, "favorites": []});
     }
   }
 
+  // Fetches requests by skill, sorted by user likes.
   Future<List<Map<String, dynamic>>> fetchRequestsBySkillSortedByLikes(
-      Db db, String skill) async {
-    var requestsCollection = db.collection('requests');
-
-    var pipeline = [
+    Db db,
+    String skill,
+  ) async {
+    final pipeline = [
       {
         '\$lookup': {
           'from': 'user_info',
@@ -187,9 +223,7 @@ class MongoDb {
           'as': 'user_info',
         }
       },
-      {
-        '\$unwind': '\$user_info',
-      },
+      {'\$unwind': '\$user_info'},
       {
         '\$match': {
           'skills.skill': skill,
@@ -197,9 +231,7 @@ class MongoDb {
         }
       },
       {
-        '\$sort': {
-          'user_info.likes': -1,
-        }
+        '\$sort': {'user_info.likes': -1}
       },
       {
         '\$project': {
@@ -215,18 +247,23 @@ class MongoDb {
       }
     ];
 
-    var result = await requestsCollection.aggregateToStream(pipeline).toList();
+    final result =
+        await db.collection('requests').aggregateToStream(pipeline).toList();
     await db.close();
     return result;
   }
 
+  // Updates the list of favorite users.
   static void updateFav(List<String> fav) async {
-    var db = await MongoDb().getConnection();
+    final db = await MongoDb().getConnection();
     await db.collection("favorites").updateOne(
-        where.eq("id", data.hostemail), modify.set("favorites", fav));
-    db.close();
+          where.eq("id", data.hostemail),
+          modify.set("favorites", fav),
+        );
+    await db.close();
   }
 
+  // Increments the number of likes for a user.
   Future<void> incrementLikes(Db db, String userId) async {
     await db.collection("user_info").updateOne(
           where.eq('id', userId),
@@ -234,6 +271,7 @@ class MongoDb {
         );
   }
 
+  // Decrements the number of likes for a user.
   Future<void> decrementLikes(Db db, String userId) async {
     await db.collection("user_info").updateOne(
           where.eq('id', userId),
@@ -241,18 +279,22 @@ class MongoDb {
         );
   }
 
+  // Adds or updates a request in the database.
   Future<void> addRequest(
-      Db db, Request request, Request prev, bool status) async {
-    var collection = db.collection('requests');
+    Db db,
+    Request request,
+    Request prev,
+    bool status,
+  ) async {
+    final collection = db.collection('requests');
+    var modifier = modify;
 
     if (status) {
-      var modifier = modify;
-
-      modifier = modifier.set('projectTitle', request.projectTitle);
-      modifier = modifier.set('projectDesc', request.projectDesc);
-      modifier = modifier.set('date', request.date);
-      modifier = modifier.set('skills', request.skills);
-      // Perform the update
+      modifier = modifier
+          .set('projectTitle', request.projectTitle)
+          .set('projectDesc', request.projectDesc)
+          .set('date', request.date)
+          .set('skills', request.skills);
       if (modifier.map.isNotEmpty) {
         await collection.updateOne(
           where
@@ -266,13 +308,40 @@ class MongoDb {
     }
   }
 
-  Future checkUserExists(Db db, String email) async {
-    List obj;
-    var movies = await db.collection("user_info");
-    obj = (await movies.find(where.eq('id', email)).toList());
-    if (obj.isEmpty) {
-      return true;
+  // Checks if a user exists in the database.
+  Future<bool> checkUserExists(Db db, String email) async {
+    List<Map<String, dynamic>> obj =
+        await db.collection("user_info").find(where.eq('id', email)).toList();
+    if (obj.isNotEmpty) {
+      try {
+        var details = obj[0];
+        print(details);
+        data.user_desc = details["user_description"];
+        data.linkedIn = details["linkedin"];
+        data.github = details["github"];
+        data.skills = details["skill"];
+        data.projects = details["projects"];
+        data.hostemail = details["id"];
+      } catch (error) {
+        print("this errror caused ************* ${error}");
+      }
     }
-    return false;
+    try {
+      // db.close();
+    } catch (e) {
+      print("problem in close");
+    }
+    return obj.isEmpty;
+  }
+
+  static Future<List<Map<String, dynamic>>> getProjects(
+      String hostemail) async {
+    var k = await MongoDb().getConnection();
+    var data = await k
+        .collection("participants")
+        .find(where.eq("id", hostemail))
+        .toList();
+    print(data);
+    return data;
   }
 }

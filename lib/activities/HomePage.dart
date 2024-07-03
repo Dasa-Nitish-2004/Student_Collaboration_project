@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:scolab/HomePageScreens/requestsPage.dart';
 import 'package:scolab/SearchPages/SearchResultPage.dart';
+import 'package:scolab/activities/ProjectTeams.dart';
 import 'package:scolab/activities/notificationScreen.dart';
 import 'package:scolab/activities/skillsPage.dart';
 import 'package:scolab/data.dart';
@@ -14,24 +15,37 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+  bool _isLoading = true;
 
   static List<Widget> _widgetOptions = <Widget>[
     RequestsPage(),
     NotificationScreen(),
-    SkillPage(title: "skill info"),
+    ProjectTeams(),
+    SkillPage(title: "Skill Info"),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeData();
+  }
+
+  Future<void> _initializeData() async {
+    try {
+      await getSkill();
+    } catch (e) {
+      print("Error fetching skills: $e");
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
-  }
-
-  @override
-  void initState() async {
-    await getSkill();
-    // TODO: implement initState
-    super.initState();
   }
 
   @override
@@ -41,9 +55,11 @@ class _HomeScreenState extends State<HomeScreen> {
         title: _buildSearchBar(),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
-      body: Center(
-        child: _widgetOptions.elementAt(_selectedIndex),
-      ),
+      body: _isLoading
+          ? Center(child: CircularProgressIndicator())
+          : Center(
+              child: _widgetOptions.elementAt(_selectedIndex),
+            ),
       bottomNavigationBar: _buildBottomNavigationBar(),
     );
   }
@@ -102,7 +118,12 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.notification_add),
-          label: 'Search',
+          label: 'Notifications',
+          backgroundColor: Color.fromARGB(255, 243, 141, 80),
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.file_download_done_sharp),
+          label: 'projects',
           backgroundColor: Color.fromARGB(255, 243, 141, 80),
         ),
         BottomNavigationBarItem(

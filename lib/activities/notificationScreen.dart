@@ -41,6 +41,8 @@ class _RequestedState extends State<Requested> {
     super.initState();
   }
 
+  bool is_RequestClicked = false;
+
   @override
   Widget build(BuildContext context) {
     requested_nof = HiveService.getRequestedRequests();
@@ -60,21 +62,29 @@ class _RequestedState extends State<Requested> {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ),
-            IconButton(
-                onPressed: () async {
-                  showDialog(
-                    context: context,
-                    builder: (context) {
-                      return Center(
-                        child: CircularProgressIndicator(),
-                      );
+            is_RequestClicked
+                ? Center(
+                    child: CircularProgressIndicator(),
+                  )
+                : IconButton(
+                    onPressed: () async {
+                      try {
+                        setState(() {
+                          is_RequestClicked = true;
+                        });
+                        await HiveService.updateRequestedNotification();
+                        setState(() {
+                          is_RequestClicked = false;
+                        });
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("error in fetching")));
+                      } finally {}
+
+                      setState(() {});
                     },
-                  );
-                  await HiveService.updateRequestedNotification();
-                  Navigator.pop(context);
-                  setState(() {});
-                },
-                icon: Icon(Icons.replay_rounded))
+                    icon: Icon(Icons.replay_rounded),
+                  )
           ],
         ),
         SizedBox(
@@ -145,6 +155,8 @@ class _RecivedNotification extends State<RecivedNotification> {
     super.initState();
   }
 
+  bool is_AcceptedClicked = false;
+  bool _isRecivedClicked = false;
   @override
   Widget build(BuildContext context) {
     recived_nof = HiveService.getReceivedRequests();
@@ -159,25 +171,32 @@ class _RecivedNotification extends State<RecivedNotification> {
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Text(
-                "recieved Notification",
+                "Recieved Notification",
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ),
-            IconButton(
-                onPressed: () async {
-                  showDialog(
-                    context: context,
-                    builder: (context) {
-                      return Center(
-                        child: CircularProgressIndicator(),
-                      );
+            _isRecivedClicked
+                ? Center(
+                    child: CircularProgressIndicator(),
+                  )
+                : IconButton(
+                    onPressed: () async {
+                      try {
+                        setState(() {
+                          _isRecivedClicked = true;
+                        });
+                        await HiveService.updateReceivedNotification();
+                        setState(() {
+                          _isRecivedClicked = false;
+                        });
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("error in fetching")));
+                      } finally {}
+
+                      setState(() {});
                     },
-                  );
-                  await HiveService.updateReceivedNotification();
-                  Navigator.pop(context);
-                  setState(() {});
-                },
-                icon: Icon(Icons.replay))
+                    icon: Icon(Icons.replay))
           ],
         ),
         SizedBox(
@@ -237,31 +256,40 @@ class _RecivedNotification extends State<RecivedNotification> {
                             ],
                           ),
                         ),
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              onPressed: () async {
-                                await HiveService.deleteRecivedRequest(
-                                    recived_nof[index], true);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                        content:
-                                            Text("connected succesfully!")));
-                                setState(() {});
-                              },
-                              icon: Icon(Icons.check),
-                            ),
-                            IconButton(
-                              onPressed: () async {
-                                await HiveService.deleteRecivedRequest(
-                                    recived_nof[index], false);
-                                setState(() {});
-                              },
-                              icon: Icon(Icons.close),
-                            ),
-                          ],
-                        ),
+                        is_AcceptedClicked
+                            ? Center(
+                                child: CircularProgressIndicator(),
+                              )
+                            : Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    onPressed: () async {
+                                      setState(() {
+                                        is_AcceptedClicked = true;
+                                      });
+                                      await HiveService.deleteRecivedRequest(
+                                          recived_nof[index], true);
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(SnackBar(
+                                              content: Text(
+                                                  "connected succesfully!")));
+                                      setState(() {
+                                        is_AcceptedClicked = false;
+                                      });
+                                    },
+                                    icon: Icon(Icons.check),
+                                  ),
+                                  IconButton(
+                                    onPressed: () async {
+                                      await HiveService.deleteRecivedRequest(
+                                          recived_nof[index], false);
+                                      setState(() {});
+                                    },
+                                    icon: Icon(Icons.close),
+                                  ),
+                                ],
+                              ),
                       ],
                     ),
                   ),

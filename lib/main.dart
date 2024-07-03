@@ -1,12 +1,10 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:hive/hive.dart';
-import 'package:hive_flutter/adapters.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:scolab/DatabaseService/databaseServices.dart';
 import 'package:scolab/activities/HomePage.dart';
-// import 'package:scolab/activities/notificationScreen.dart';
 import 'package:scolab/activities/skillsPage.dart';
 import 'package:mongo_dart/mongo_dart.dart' as mongo;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -19,10 +17,9 @@ void main() async {
   await Hive.openBox('liked_users');
   await Hive.openBox('Requested_Requests');
   await Hive.openBox('Recived_Requests');
+  await Hive.openBox('My_Projects');
 
   runApp(const MyApp());
-
-  // runApp(MaterialApp(home: NotificationScreen()));
 }
 
 class MyApp extends StatefulWidget {
@@ -43,28 +40,14 @@ class _MyAppState extends State<MyApp> {
     super.initState();
 
     _internetConnectionStreamSubscription =
-        InternetConnection().onStatusChange.listen(
-      (event) {
-        switch (event) {
-          case InternetStatus.connected:
-            setState(() {
-              isConnected = true;
-              checkLog();
-            });
-            break;
-          case InternetStatus.disconnected:
-            setState(() {
-              isConnected = false;
-            });
-            break;
-          default:
-            setState(() {
-              isConnected = false;
-            });
-            break;
+        InternetConnection().onStatusChange.listen((event) {
+      setState(() {
+        isConnected = event == InternetStatus.connected;
+        if (isConnected) {
+          checkLog();
         }
-      },
-    );
+      });
+    });
   }
 
   @override
@@ -79,13 +62,18 @@ class _MyAppState extends State<MyApp> {
     if (email == null || email.isEmpty) {
       loggedin = "";
     } else {
-      if (await MongoDb()
-          .checkUserExists(await MongoDb().getConnection(), email)) {
-        await prefs.setString('email', "");
-        loggedin = "";
-      } else {
-        loggedin = email;
-        dataFile.hostemail = email;
+      var db = await MongoDb().getConnection();
+      try {
+        if (await MongoDb().checkUserExists(db, email)) {
+          await prefs.setString('email', "");
+          loggedin = "";
+        } else {
+          await prefs.setString('email', email);
+          loggedin = email;
+          dataFile.hostemail = email;
+        }
+      } catch (error) {
+        db.close();
       }
     }
     setState(() {
@@ -104,8 +92,24 @@ class _MyAppState extends State<MyApp> {
       home: isConnected
           ? status
               ? (loggedin.isEmpty ? signInPage() : HomeScreen())
-              : const Center(
-                  child: CircularProgressIndicator(),
+              // : const Center(
+              //     child: CircularProgressIndicator(),
+              //   )
+              : Scaffold(
+                  body: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        CircleAvatar(
+                          backgroundImage:
+                              AssetImage("assets/imgs/appIcon.png"),
+                          radius: 50,
+                        ),
+                        Text("SCOLAB"),
+                      ],
+                    ),
+                  ),
                 )
           : const Center(
               child: Scaffold(
@@ -127,13 +131,26 @@ class signInPage extends StatefulWidget {
 
 class _signInPageState extends State<signInPage> {
   late mongo.Db db;
-  List data = [];
   late GoogleSignIn _googleSignIn;
   Widget login_space = Container();
   var email = "";
 
+  @override
+  void initState() {
+    login_space = signInEmail();
+    connect();
+    try {
+      signOut();
+    } catch (e) {}
+    super.initState();
+  }
+
   void connect() async {
-    db = await MongoDb().getConnection();
+    try {
+      db = await MongoDb().getConnection();
+    } catch (e) {
+      print("Error connecting to MongoDB: $e");
+    }
   }
 
   @override
@@ -142,97 +159,75 @@ class _signInPageState extends State<signInPage> {
     super.dispose();
   }
 
-  registerUser() async {
+  Future<void> registerUser() async {
     _googleSignIn = GoogleSignIn();
     try {
       var result = await _googleSignIn.signIn();
-      email = result!.email;
-      MongoDb().addUser(db, email);
+      var email = result!.email;
+      print(email);
+      await MongoDb().addUser(db, email);
       signOut();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Successfully registered in $email"),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      showSnackBar("Successfully registered in $email");
     } catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Unsuccessful to register : $email, try again"),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      showSnackBar("Unsuccessful to register: $error, try again");
       signOut();
-      // print(error);
     } finally {
       setState(() {});
     }
   }
 
-  signIn() async {
+  Future<void> signIn() async {
     _googleSignIn = GoogleSignIn();
     try {
       var result = await _googleSignIn.signIn();
       email = result!.email;
-      showDialog(
-        context: context,
-        builder: (context) {
-          return Center(
-            child: CircularProgressIndicator(),
-          );
-        },
-      );
-      if (!await MongoDb()
-          .checkUserExists(await MongoDb().getConnection(), email)) {
+      showLoadingDialog();
+      if (!await MongoDb().checkUserExists(db, email)) {
         var prefs = await SharedPreferences.getInstance();
         await prefs.setString('email', email);
         dataFile.hostemail = email;
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Successfully signed in $email"),
-            duration: Duration(seconds: 2),
-          ),
-        );
+        showSnackBar("Successfully signed in $email");
         Navigator.of(context).pushReplacement(MaterialPageRoute(
           builder: (context) {
-            return SkillPage(
-              title: 'Info & Skill',
-            );
+            return SkillPage(title: 'Info & Skill');
           },
         ));
       } else {
         signOut();
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Failed to Sign In. Please register the account."),
-            duration: Duration(seconds: 2),
-          ),
-        );
+        showSnackBar("Failed to Sign In. Please register the account.");
         email = "";
       }
     } catch (error) {
       signOut();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text("Check internet connectivity"),
-        duration: Duration(seconds: 3),
-      ));
+      showSnackBar("${error}");
     } finally {
       setState(() {});
     }
   }
 
-  signOut() {
+  void signOut() {
     _googleSignIn.signOut();
     _googleSignIn.disconnect();
   }
 
-  @override
-  void initState() {
-    login_space = signInEmail();
-    connect();
-    super.initState();
+  void showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(message),
+      duration: Duration(seconds: 2),
+    ));
+  }
+
+  void showLoadingDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Center(
+          child: CircularProgressIndicator(),
+        );
+      },
+    );
   }
 
   @override
@@ -245,38 +240,30 @@ class _signInPageState extends State<signInPage> {
       body: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          SizedBox(
-            height: 20,
-          ),
+          SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      login_space = signInEmail();
-                    });
-                  },
-                  child: Text(
-                    "Sign In",
-                  )),
-              SizedBox(
-                width: 20,
+                onPressed: () {
+                  setState(() {
+                    login_space = signInEmail();
+                  });
+                },
+                child: Text("Sign In"),
               ),
+              SizedBox(width: 20),
               ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      login_space = registerEmail();
-                    });
-                  },
-                  child: Text(
-                    "Register",
-                  )),
+                onPressed: () {
+                  setState(() {
+                    login_space = registerEmail();
+                  });
+                },
+                child: Text("Register"),
+              ),
             ],
           ),
-          SizedBox(
-            height: 20,
-          ),
+          SizedBox(height: 20),
           login_space,
         ],
       ),
@@ -302,10 +289,10 @@ class _signInPageState extends State<signInPage> {
             width: double.infinity,
           ),
           ElevatedButton(
-              onPressed: registerUser, child: Text("Register with Mail")),
-          SizedBox(
-            height: 20,
+            onPressed: registerUser,
+            child: Text("Register with Mail"),
           ),
+          SizedBox(height: 20),
         ],
       ),
     );
@@ -330,10 +317,10 @@ class _signInPageState extends State<signInPage> {
             width: double.infinity,
           ),
           ElevatedButton(
-              onPressed: signIn, child: Text("Sign with Registered Mail")),
-          SizedBox(
-            height: 20,
+            onPressed: signIn,
+            child: Text("Sign with Registered Mail"),
           ),
+          SizedBox(height: 20),
         ],
       ),
     );

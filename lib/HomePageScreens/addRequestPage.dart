@@ -5,10 +5,10 @@ import 'package:scolab/request_bluePrint.dart';
 import 'package:intl/intl.dart';
 
 class AddRequestPage extends StatefulWidget {
-  void Function({Request? k}) addRequest;
-  Request? k;
-  AddRequestPage(void Function({Request? k}) this.addRequest,
-      {Request? this.k, super.key});
+  final void Function({Request? k}) addRequest;
+  final Request? k;
+  AddRequestPage(this.addRequest, {this.k, Key? key}) : super(key: key);
+
   @override
   State<AddRequestPage> createState() => _AddRequestPageState();
 }
@@ -28,12 +28,13 @@ class _AddRequestPageState extends State<AddRequestPage> {
     }
   }
 
+  // Fetch user data if Request object is passed
   void _fetchUserData() async {
     _showLoadingDialog();
     try {
+      // Uncomment and modify as necessary if userRequest fetching logic is needed
       // var userRequest = await data.getRequest(email, widget.k!.projectTitle);
       setState(() {
-        // _populateUserData(userRequest);
         _populateUserData();
       });
       Navigator.pop(context); // Close loading dialog
@@ -43,19 +44,16 @@ class _AddRequestPageState extends State<AddRequestPage> {
     }
   }
 
-  // void _populateUserData(Map userRequest) {
+  // Populate user data in the form fields
   void _populateUserData() {
-    // projectTitle.text = userRequest['projectTitle'] ?? '';
-    // projectDescription.text = userRequest['projectDesc'] ?? '';
-    projectTitle.text = widget.k!.projectTitle ?? '';
-    projectDescription.text = widget.k!.projectDesc ?? '';
-
-    // for (var skill in userRequest['skills'] ?? []) {
-    for (var skill in widget.k!.skills ?? []) {
+    projectTitle.text = widget.k!.projectTitle;
+    projectDescription.text = widget.k!.projectDesc;
+    for (var skill in widget.k!.skills) {
       _addSkill(skill);
     }
   }
 
+  // Show a loading dialog
   void _showLoadingDialog() {
     showDialog(
       context: context,
@@ -65,6 +63,7 @@ class _AddRequestPageState extends State<AddRequestPage> {
     );
   }
 
+  // Show an error dialog
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
@@ -83,6 +82,7 @@ class _AddRequestPageState extends State<AddRequestPage> {
     );
   }
 
+  // Initialize skills by fetching from data source
   void _initializeSkills() async {
     _showLoadingDialog();
     try {
@@ -98,6 +98,7 @@ class _AddRequestPageState extends State<AddRequestPage> {
     }
   }
 
+  // Remove a skill entry
   void _removeSkill(int index) {
     setState(() {
       skillControllers[index]['skill']!.dispose();
@@ -117,6 +118,7 @@ class _AddRequestPageState extends State<AddRequestPage> {
     super.dispose();
   }
 
+  // Add a skill entry
   void _addSkill(Map skill) {
     setState(() {
       skillControllers.add({
@@ -126,6 +128,7 @@ class _AddRequestPageState extends State<AddRequestPage> {
     });
   }
 
+  // Build the skill entry widget
   Widget _buildSkillEntry(int index, Map<String, TextEditingController> skill) {
     return Column(
       children: [
@@ -158,8 +161,7 @@ class _AddRequestPageState extends State<AddRequestPage> {
                     color: Theme.of(context).colorScheme.inversePrimary,
                     size: 24),
                 suffixIcon: Row(
-                  mainAxisSize: MainAxisSize
-                      .min, // Added to ensure Row takes minimum width
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
                       icon: Icon(Icons.add, color: Colors.black),
@@ -167,7 +169,7 @@ class _AddRequestPageState extends State<AddRequestPage> {
                         skill['skill']!.text = textEditingController.text;
                         skillSuggestions.add(textEditingController.text);
                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text("skill added successfully"),
+                          content: Text("Skill added successfully"),
                           duration: Duration(seconds: 1),
                         ));
                       },
@@ -203,6 +205,7 @@ class _AddRequestPageState extends State<AddRequestPage> {
     );
   }
 
+  // Get skills from the controllers
   List<Map<String, String>> _getSkills() {
     return skillControllers.map((skill) {
       return {
@@ -212,6 +215,7 @@ class _AddRequestPageState extends State<AddRequestPage> {
     }).toList();
   }
 
+  // Validate user input
   bool _isInputValid(
       String prjTitle, String prjDesc, List<Map<String, String>> skills) {
     final allSkills = skills.map((e) => e['skill']!).toList();
@@ -221,6 +225,7 @@ class _AddRequestPageState extends State<AddRequestPage> {
         allSkills.length == uniqueSkills.length;
   }
 
+  // Submit user data to the database
   Future<void> _submitData(
     String prjTitle,
     String prjDesc,
@@ -265,11 +270,6 @@ class _AddRequestPageState extends State<AddRequestPage> {
         db.close();
         Navigator.pop(context); // Close loading dialog
         Navigator.pop(context); // Close request Edit
-
-        // Navigator.pushReplacement(
-        //   context,
-        //   MaterialPageRoute(builder: (context) => HomeScreen()),
-        // );
       } else {
         Navigator.pop(context); // Close loading dialog
         _showErrorDialog("No email found in SharedPreferences.");
@@ -280,6 +280,7 @@ class _AddRequestPageState extends State<AddRequestPage> {
     }
   }
 
+  // Handle submit button click
   void _handleSubmit() async {
     final prjTitle = projectTitle.text;
     final prjDesc = projectDescription.text;
@@ -306,9 +307,7 @@ class _AddRequestPageState extends State<AddRequestPage> {
           padding: EdgeInsets.fromLTRB(16, 16, 16, keyboardSpace + 50),
           child: Column(
             children: [
-              SizedBox(
-                height: 20,
-              ),
+              SizedBox(height: 20),
               TextField(
                 controller: projectTitle,
                 maxLines: 1,
@@ -323,9 +322,7 @@ class _AddRequestPageState extends State<AddRequestPage> {
                       size: 24),
                 ),
               ),
-              SizedBox(
-                height: 20,
-              ),
+              SizedBox(height: 20),
               TextField(
                 controller: projectDescription,
                 minLines: 1,
@@ -335,15 +332,13 @@ class _AddRequestPageState extends State<AddRequestPage> {
                     borderRadius: BorderRadius.circular(22),
                   ),
                   hintText: "Project Description",
-                  helperText: "Enter Project Explaination",
+                  helperText: "Enter Project Explanation",
                   prefixIcon: Icon(Icons.article,
                       color: Theme.of(context).colorScheme.inversePrimary,
                       size: 24),
                 ),
               ),
-              SizedBox(
-                height: 20,
-              ),
+              SizedBox(height: 20),
               ...skillControllers.asMap().entries.map((entry) {
                 int index = entry.key;
                 Map<String, TextEditingController> skill = entry.value;
@@ -353,10 +348,11 @@ class _AddRequestPageState extends State<AddRequestPage> {
                 onPressed: () => _addSkill({'skill': '', 'description': ''}),
                 child: Text("Add Skill Request"),
               ),
-              SizedBox(
-                height: 20,
+              SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _handleSubmit,
+                child: Text("Submit"),
               ),
-              ElevatedButton(onPressed: _handleSubmit, child: Text("Submit"))
             ],
           ),
         ),
